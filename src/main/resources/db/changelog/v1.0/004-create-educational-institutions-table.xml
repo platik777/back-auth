@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="004-create-educational-institutions-table" author="migration">
+        <createTable tableName="educational_institutions" schemaName="public">
+            <column name="educational_institutions_uuid" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValue="true">
+                <constraints nullable="false"/>
+            </column>
+            <column name="issue_date" type="TIMESTAMPTZ"/>
+            <column name="end_date" type="TIMESTAMPTZ"/>
+            <column name="id" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="full_name" type="TEXT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="short_name" type="VARCHAR(500)"/>
+            <column name="head_edu_org_id" type="VARCHAR(255)"/>
+            <column name="is_branch" type="INTEGER" defaultValue="0"/>
+            <column name="post_address" type="TEXT"/>
+            <column name="phone" type="VARCHAR(50)"/>
+            <column name="fax" type="VARCHAR(50)"/>
+            <column name="email" type="VARCHAR(255)"/>
+            <column name="web_site" type="VARCHAR(500)"/>
+            <column name="ogrn" type="VARCHAR(255)"/>
+            <column name="inn" type="VARCHAR(255)"/>
+            <column name="kpp" type="VARCHAR(255)"/>
+            <column name="head_post" type="VARCHAR(500)"/>
+            <column name="head_name" type="VARCHAR(500)"/>
+            <column name="form_name" type="VARCHAR(255)"/>
+            <column name="kind_name" type="VARCHAR(255)"/>
+            <column name="type_name" type="VARCHAR(255)"/>
+            <column name="region_name" type="VARCHAR(255)"/>
+            <column name="federal_district_short_name" type="VARCHAR(255)"/>
+            <column name="federal_district_name" type="VARCHAR(255)"/>
+        </createTable>
+
+        <createIndex tableName="educational_institutions" indexName="idx_edu_inst_full_name">
+            <column name="full_name"/>
+        </createIndex>
+
+        <createIndex tableName="educational_institutions" indexName="idx_edu_inst_is_active">
+            <column name="is_active"/>
+        </createIndex>
+
+        <createIndex tableName="educational_institutions" indexName="idx_edu_inst_region">
+            <column name="region_name"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

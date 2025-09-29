@@ -1,0 +1,106 @@
+server:
+    port: ${BACK_AUTH_PORT}
+
+spring:
+    application:
+        name: back-auth
+
+    datasource:
+        url: jdbc:postgresql://${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_DB}
+        username: ${POSTGRESQL_USERNAME}
+        password: ${POSTGRESQL_PASSWORD}
+        driver-class-name: org.postgresql.Driver
+
+    jpa:
+        hibernate:
+            ddl-auto: validate
+        show-sql: false
+        properties:
+            hibernate:
+                dialect: org.hibernate.dialect.PostgreSQLDialect
+                format_sql: true
+
+    liquibase:
+        change-log: classpath:db/changelog/db.changelog-master.xml
+
+    mail:
+        host: ${SMTP_HOST}
+        port: ${SMTP_PORT}
+        username: ${SMTP_SENDER_EMAIL}
+        password: ${SMTP_PASSWORD}
+        properties:
+            mail:
+                smtp:
+                    auth: true
+                    ssl:
+                        enable: ${SMTP_TLS}
+                    starttls:
+                        enable: true
+
+    security:
+        user:
+            name: admin
+            password: admin
+
+# ?????????? ??????????
+management:
+    endpoints:
+        web:
+            exposure:
+                include: health,info,metrics,prometheus
+    endpoint:
+        health:
+            show-details: always
+    prometheus:
+        metrics:
+            export:
+                enabled: true
+
+# ????????? ????????? ??????????
+app:
+    base-url: ${BASE_URL}
+
+    jwt:
+        app:
+            access:
+                secret: ${JWT_APP_ACCESS_SECRET}
+                expiration: 600000 # 10 ?????
+            refresh:
+                secret: ${JWT_APP_REFRESH_SECRET}
+                expiration: 28800000 # 8 ?????
+        base:
+            access:
+                secret: ${JWT_BASE_ACCESS_SECRET}
+                expiration: 600000 # 10 ?????
+            refresh:
+                secret: ${JWT_BASE_REFRESH_SECRET}
+                expiration: 28800000 # 8 ?????
+        reset-password:
+            secret: ${JWT_RESET_PASSWORD_SECRET}
+            expiration: 600000 # 10 ?????
+        api-key:
+            secret: ${JWT_API_KEY_SECRET}
+
+    salt: ${PASSWORD_SALT}
+
+    smtp:
+        send-to-logs: ${SMTP_SEND_TO_LOGS}
+        support-email: ${SMTP_SUPPORT_EMAIL}
+        product-email: ${SMTP_PRODUCT_EMAIL}
+
+    back-access:
+        host: ${BACK_ACCESS_HOST}
+        port: ${BACK_ACCESS_PORT}
+        key-edit-access: ${KEY_EDIT_ACCESS}
+
+    back-log:
+        host: ${BACK_LOG_HOST}
+        port: ${BACK_LOG_PORT}
+
+logging:
+    level:
+        ru.platik777.backauth: DEBUG
+        org.springframework.security: DEBUG
+    pattern:
+        console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+        file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
