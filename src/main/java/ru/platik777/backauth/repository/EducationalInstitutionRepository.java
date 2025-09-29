@@ -55,4 +55,6 @@ public interface EducationalInstitutionRepository extends JpaRepository<Educatio
      * Проверка существования по UUID
      */
     boolean existsByUuid(String uuid);
+
+    List<EducationalInstitution> findByTypeName(String typeName);
 }

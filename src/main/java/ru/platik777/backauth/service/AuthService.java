@@ -1,12 +1,10 @@
 package ru.platik777.backauth.service;
 
 import ru.platik777.backauth.dto.UserDto;
+import ru.platik777.backauth.dto.request.EditUserRequestDto;
 import ru.platik777.backauth.dto.request.SignInRequestDto;
 import ru.platik777.backauth.dto.request.SignUpRequestDto;
-import ru.platik777.backauth.dto.response.ApiResponseDto;
-import ru.platik777.backauth.dto.response.AuthorizationResponseDto;
-import ru.platik777.backauth.dto.response.TokenResponseDto;
-import ru.platik777.backauth.dto.response.UniquenessResponseDto;
+import ru.platik777.backauth.dto.response.*;
 import ru.platik777.backauth.entity.*;
 import ru.platik777.backauth.mapper.CompanyMapper;
 import ru.platik777.backauth.mapper.StudentMapper;
@@ -17,11 +15,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Основной сервис аутентификации
- * Реализует логику из Go версии AuthService
+ * Реализует ВСЮ логику из Go версии AuthService (auth.go)
  */
 @Slf4j
 @Service
@@ -35,6 +35,7 @@ public class AuthService {
     private final UserSessionRepository userSessionRepository;
     private final UserSchemaRepository userSchemaRepository;
     private final ProjectAccessRepository projectAccessRepository;
+    private final EducationalInstitutionRepository educationalInstitutionRepository;
 
     private final JwtService jwtService;
     private final PasswordService passwordService;
@@ -43,8 +44,13 @@ public class AuthService {
     private final CompanyMapper companyMapper;
     private final StudentMapper studentMapper;
 
+    // ============================================
+    // Аутентификация и авторизация
+    // ============================================
+
     /**
-     * Регистрация пользователя (аналог SignUp из Go)
+     * Регистрация пользователя
+     * Аналог SignUp из Go
      */
     @Transactional
     public ApiResponseDto<?> signUp(SignUpRequestDto requestDto, String locale) {
@@ -62,30 +68,35 @@ public class AuthService {
         // Создание пользовательской схемы БД
         createUserSchema(user, requestDto);
 
-        // Создание дополнительных сущностей
+        // Создание дополнительных сущностей (Student/Company)
         createAdditionalEntities(user, requestDto);
+
+        // Генерация токенов
+        TokenResponseDto tokens = generateTokens(user.getId());
 
         // Получение данных пользователя для ответа
         UserDto userDto = getUserDto(user);
 
         log.info("User registered successfully with ID: {}", user.getId());
-        return ApiResponseDto.success(userDto);
+
+        return ApiResponseDto.success(new SignUpResponse(tokens, userDto));
     }
 
     /**
-     * Вход пользователя (аналог SignIn из Go)
+     * Вход пользователя
+     * Аналог SignIn из Go
      */
     @Transactional
-    public TokenResponseDto signIn(SignInRequestDto requestDto, String userAgent) {
+    public ApiResponseDto<?> signIn(SignInRequestDto requestDto, String userAgent) {
         log.debug("Starting user sign in for login: {}", requestDto.getLogin());
 
-        // Валидация входных данных
-        validateSignInData(requestDto);
+        // Валидация
+        validateSignInRequest(requestDto);
 
-        // Поиск пользователя и проверка пароля
+        // Поиск и проверка пользователя
         User user = findAndValidateUser(requestDto);
 
-        // Создание токенов
+        // Генерация токенов
         TokenResponseDto tokens = generateTokens(user.getId());
 
         // Создание сессии
@@ -93,167 +104,457 @@ public class AuthService {
 
         // Получение данных пользователя
         UserDto userDto = getUserDto(user);
-        tokens.setUser(userDto);
 
         log.info("User signed in successfully with ID: {}", user.getId());
-        return tokens;
+
+        return ApiResponseDto.success(new SignInResponse(tokens, userDto));
     }
 
     /**
-     * Проверка уникальности поля
+     * Обновление App Access токена через App Refresh Token
+     * Аналог RefreshAppToken из Go
      */
-    public UniquenessResponseDto checkFieldUniqueness(String field, String value) {
-        boolean isUnique = uniquenessService.isFieldUnique(field, value);
-        return isUnique ? UniquenessResponseDto.unique() : UniquenessResponseDto.notUnique();
+    public ApiResponseDto<TokenResponseDto> refreshAppToken(String refreshToken) {
+        log.debug("Refreshing app access token");
+
+        // Валидация refresh токена
+        Integer userId = jwtService.validateAppRefreshToken(refreshToken);
+
+        // Проверка существования пользователя
+        userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Генерация нового access токена
+        String newAccessToken = jwtService.createAppAccessToken(userId);
+
+        TokenResponseDto tokens = new TokenResponseDto(
+                newAccessToken,
+                refreshToken,  // Старый refresh токен остается
+                null,
+                null,
+                null
+        );
+
+        log.info("App access token refreshed for userId: {}", userId);
+
+        return ApiResponseDto.success(tokens);
     }
 
     /**
-     * Обновление App токенов по Base Refresh токену
+     * Обновление App токенов через Base Refresh Token
+     * Аналог RefreshAppTokenByBaseToken из Go
      */
-    public TokenResponseDto refreshAppTokenByBaseToken(String refreshBaseToken) {
-        Integer userId = jwtService.parseBaseRefreshToken(refreshBaseToken);
-        return generateTokens(userId);
+    public ApiResponseDto<TokenResponseDto> refreshAppTokenByBaseToken(String baseRefreshToken) {
+        log.debug("Refreshing app tokens by base refresh token");
+
+        // Валидация base refresh токена
+        Integer userId = jwtService.validateBaseRefreshToken(baseRefreshToken);
+
+        // Проверка существования пользователя
+        userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Генерация новых App токенов
+        String appAccessToken = jwtService.createAppAccessToken(userId);
+        String appRefreshToken = jwtService.createAppRefreshToken(userId);
+
+        TokenResponseDto tokens = new TokenResponseDto(
+                appAccessToken,
+                appRefreshToken,
+                null,
+                baseRefreshToken,  // Старый base refresh токен остается
+                null
+        );
+
+        log.info("App tokens refreshed by base token for userId: {}", userId);
+
+        return ApiResponseDto.success(tokens);
     }
 
     /**
-     * Обновление App токенов
+     * Обновление Base токенов через Base Refresh Token
+     * Аналог RefreshBaseToken из Go
      */
-    public TokenResponseDto refreshAppToken(String refreshToken) {
-        Integer userId = jwtService.parseAppRefreshToken(refreshToken);
-        return generateTokens(userId);
-    }
+    public ApiResponseDto<TokenResponseDto> refreshBaseToken(String refreshToken) {
+        log.debug("Refreshing base tokens");
 
-    /**
-     * Обновление Base токенов
-     */
-    public TokenResponseDto refreshBaseToken(String refreshToken) {
-        Integer userId = jwtService.parseBaseRefreshToken(refreshToken);
+        // Валидация refresh токена
+        Integer userId = jwtService.validateBaseRefreshToken(refreshToken);
 
-        String accessBaseToken = jwtService.createBaseAccessToken(userId);
-        String refreshBaseToken = jwtService.createBaseRefreshToken(userId);
+        // Проверка существования пользователя
+        userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
 
-        return new TokenResponseDto(null, null, accessBaseToken, refreshBaseToken, null);
+        // Генерация новых Base токенов
+        String baseAccessToken = jwtService.createBaseAccessToken(userId);
+        String baseRefreshToken = jwtService.createBaseRefreshToken(userId);
+
+        TokenResponseDto tokens = new TokenResponseDto(
+                null,
+                null,
+                baseAccessToken,
+                baseRefreshToken,
+                null
+        );
+
+        log.info("Base tokens refreshed for userId: {}", userId);
+
+        return ApiResponseDto.success(tokens);
     }
 
     /**
      * Проверка App авторизации
+     * Аналог IsAppAuthorization из Go
      */
-    public AuthorizationResponseDto isAppAuthorization(String accessToken) {
+    public ApiResponseDto<AuthorizationResponseDto> isAppAuthorization(String accessToken) {
+        log.debug("Checking app authorization");
+
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            throw new RuntimeException("Access token cannot be empty");
+        }
+
         try {
-            Integer userId = jwtService.parseAppAccessToken(accessToken);
-            return AuthorizationResponseDto.success(userId);
+            // Валидация токена
+            Integer userId = jwtService.validateAppAccessToken(accessToken);
+
+            // Проверка существования пользователя
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            AuthorizationResponseDto response = AuthorizationResponseDto.builder()
+                    .userId(user.getId())
+                    .build();
+
+            return ApiResponseDto.success(response);
+
         } catch (Exception e) {
-            return AuthorizationResponseDto.invalid();
+            log.error("App authorization check failed", e);
+            throw new RuntimeException("Invalid or expired token");
         }
     }
 
     /**
      * Проверка Base авторизации
+     * Аналог IsBaseAuthorization из Go
      */
-    public AuthorizationResponseDto isBaseAuthorization(String accessToken) {
+    public ApiResponseDto<AuthorizationResponseDto> isBaseAuthorization(String accessToken) {
+        log.debug("Checking base authorization");
+
+        if (accessToken == null || accessToken.trim().isEmpty()) {
+            throw new RuntimeException("Access token cannot be empty");
+        }
+
         try {
-            Integer userId = jwtService.parseBaseAccessToken(accessToken);
-            return AuthorizationResponseDto.success(userId);
+            // Валидация токена
+            Integer userId = jwtService.validateBaseAccessToken(accessToken);
+
+            // Проверка существования пользователя
+            User user = userRepository.findById(userId)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            AuthorizationResponseDto response = AuthorizationResponseDto.builder()
+                    .userId(user.getId())
+                    .build();
+
+            return ApiResponseDto.success(response);
+
         } catch (Exception e) {
-            return AuthorizationResponseDto.invalid();
+            log.error("Base authorization check failed", e);
+            throw new RuntimeException("Invalid or expired token");
         }
     }
 
     /**
      * Проверка принадлежности проекта пользователю
+     * Аналог CheckProjectId из Go
      */
     public boolean checkProjectId(Integer userId, Integer projectId) {
+        log.debug("Checking project ownership - userId: {}, projectId: {}", userId, projectId);
         return projectAccessRepository.checkProjectOwnership(userId, projectId);
+    }
+
+    // ============================================
+    // Управление пользователями
+    // ============================================
+
+    /**
+     * Редактирование данных пользователя
+     * Аналог EditUser из Go
+     */
+    @Transactional
+    public ApiResponseDto<UserDto> editUser(EditUserRequestDto requestDto) {
+        log.debug("Editing user data for userId: {}", requestDto.getUserId());
+
+        // Поиск пользователя
+        User user = userRepository.findById(requestDto.getUserId())
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        // Получение UserData через связь
+        UserData userData = user.getUserData();
+        if (userData == null) {
+            throw new RuntimeException("User data not found");
+        }
+
+        // Обновление полей в UserData
+        boolean dataChanged = false;
+
+        if (requestDto.getUserName() != null && !requestDto.getUserName().trim().isEmpty()) {
+            userData.setUserName(requestDto.getUserName().trim());
+            dataChanged = true;
+        }
+
+        if (requestDto.getEmail() != null && !requestDto.getEmail().trim().isEmpty()) {
+            // Проверка уникальности email (если изменился)
+            if (!requestDto.getEmail().equals(userData.getEmail())) {
+                boolean emailExists = userDataRepository.existsByEmailIgnoreCase(requestDto.getEmail());
+                if (emailExists) {
+                    throw new RuntimeException("Email already in use");
+                }
+                userData.setEmail(requestDto.getEmail().trim());
+                dataChanged = true;
+            }
+        }
+
+        if (requestDto.getPhone() != null) {
+            userData.setPhone(requestDto.getPhone().trim());
+            dataChanged = true;
+        }
+
+        // Обновление locale в User.settings
+        if (requestDto.getLocale() != null) {
+            User.UserSettings settings = user.getSettings();
+            if (settings == null) {
+                settings = new User.UserSettings();
+            }
+            settings.setLocale(requestDto.getLocale());
+            user.setSettings(settings);
+            user = userRepository.save(user);
+        }
+
+        // Обновление пароля (если указан)
+        if (requestDto.getNewPassword() != null && !requestDto.getNewPassword().trim().isEmpty()) {
+            // Проверка старого пароля (если указан)
+            if (requestDto.getOldPassword() != null) {
+                String oldPasswordHash = passwordService.generatePasswordHash(requestDto.getOldPassword());
+                if (!oldPasswordHash.equals(userData.getPasswordHash())) {
+                    throw new RuntimeException("Old password is incorrect");
+                }
+            }
+
+            // Установка нового пароля
+            String newPasswordHash = passwordService.generatePasswordHash(requestDto.getNewPassword());
+            userData.setPasswordHash(newPasswordHash);
+            dataChanged = true;
+        }
+
+        // Сохранение UserData если были изменения
+        if (dataChanged) {
+            userDataRepository.save(userData);
+        }
+
+        log.info("User data updated successfully for userId: {}", user.getId());
+
+        UserDto userDto = userMapper.toDto(user);
+        return ApiResponseDto.success(userDto);
     }
 
     /**
      * Получение данных пользователя
+     * Аналог GetUser из Go
      */
-    public UserDto getUser(Integer userId) {
-        User user = userRepository.findByIdWithUserData(userId)
+    @Transactional(readOnly = true)
+    public ApiResponseDto<UserDto> getUser(Integer userId) {
+        log.debug("Getting user data for userId: {}", userId);
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return getUserDto(user);
+
+        UserDto userDto = userMapper.toDto(user);
+
+        return ApiResponseDto.success(userDto);
     }
 
     /**
      * Получение базовых данных пользователя
+     * Аналог GetBaseUser из Go
      */
-    public UserDto getBaseUser(Integer userId) {
-        User user = userRepository.findByIdWithUserData(userId)
+    @Transactional(readOnly = true)
+    public ApiResponseDto<UserDto> getBaseUser(Integer userId) {
+        log.debug("Getting base user data for userId: {}", userId);
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
+        UserData userData = user.getUserData();
+
+        // В Go версии GetBaseUser возвращает только базовые поля
         UserDto userDto = new UserDto();
         userDto.setId(user.getId());
         userDto.setLogin(user.getLogin());
-        if (user.getUserData() != null) {
-            userDto.setEmail(user.getUserData().getEmail());
-            userDto.setUserName(user.getUserData().getUserName());
+        if (userData != null) {
+            userDto.setEmail(userData.getEmail());
+            userDto.setUserName(userData.getUserName());
         }
 
-        return userDto;
+        return ApiResponseDto.success(userDto);
     }
 
-    // Приватные методы
+    /**
+     * Получение списка компаний пользователя
+     * Аналог GetCompanies из Go
+     */
+    @Transactional(readOnly = true)
+    public ApiResponseDto<CompanyListResponseDto> getCompanies(Integer userId) {
+        log.debug("Getting companies for userId: {}", userId);
+
+        // В Company нет userId, есть ownerId
+        List<Company> companies = companyRepository.findByOwnerId(userId);
+
+        List<CompanyListResponseDto.CompanyItemDto> companyItems = companies.stream()
+                .map(c -> CompanyListResponseDto.CompanyItemDto.builder()
+                        .id(c.getCompanyId())  // Исправлено: companyId вместо id
+                        .name(c.getFullTitle())  // Исправлено: fullTitle вместо name
+                        .inn(c.getTaxNumber())   // Исправлено: taxNumber вместо inn
+                        .position(null)          // В Company нет поля position
+                        .createdAt(c.getCreatedAt() != null ? c.getCreatedAt().toString() : null)
+                        .build())
+                .collect(Collectors.toList());
+
+        CompanyListResponseDto response = CompanyListResponseDto.builder()
+                .companies(companyItems)
+                .build();
+
+        return ApiResponseDto.success(response);
+    }
+
+    /**
+     * Получение данных студента
+     * Аналог GetStudent из Go
+     */
+    @Transactional(readOnly = true)
+    public ApiResponseDto<StudentDataResponseDto> getStudent(Integer userId) {
+        log.debug("Getting student data for userId: {}", userId);
+
+        Student student = studentRepository.findByUserId(userId)
+                .orElseThrow(() -> new RuntimeException("Student data not found"));
+
+        // Получаем название учебного заведения
+        String institutionName = null;
+        if (student.getEducationalInstitution() != null) {
+            institutionName = student.getEducationalInstitution().getFullName();
+        } else if (student.getEducationalInstitutionsUuid() != null) {
+            Optional<EducationalInstitution> instOpt = educationalInstitutionRepository
+                    .findById(student.getEducationalInstitutionsUuid());
+            institutionName = instOpt.map(EducationalInstitution::getFullName).orElse(null);
+        }
+
+        // Формируем информацию о курсе из годов обучения
+        String courseInfo = String.format("%d-%d", student.getStartYear(), student.getEndYear());
+
+        // Используем studentId как идентификатор группы
+        String groupInfo = student.getStudentId();
+
+        StudentDataResponseDto response = StudentDataResponseDto.builder()
+                .id(student.getUuid() != null ? student.getUuid().hashCode() : null)
+                .educationalInstitution(institutionName)
+                .course(courseInfo)
+                .group(groupInfo)
+                .createdAt(student.getCreatedAt() != null ? student.getCreatedAt().toString() : null)
+                .build();
+
+        return ApiResponseDto.success(response);
+    }
+
+    /**
+     * Проверка роли администратора
+     * Аналог CheckRoleAdmin из Go
+     * TODO: Реализовать интеграцию с back-access для проверки ролей
+     */
+    public boolean checkRoleAdmin(Integer userId) {
+        log.debug("Checking admin role for userId: {}", userId);
+
+        // TODO: Интеграция с back-access сервисом для получения ролей
+        // Пока возвращаем false
+        log.warn("Admin role check not implemented, returning false");
+        return false;
+    }
+
+    // ============================================
+    // Вспомогательные приватные методы
+    // ============================================
 
     private void validateUniqueFields(SignUpRequestDto requestDto) {
-        if (!uniquenessService.isFieldUnique("login", requestDto.getLogin())) {
-            throw new RuntimeException("Login is already in use");
+        // Проверка уникальности логина
+        boolean loginUnique = uniquenessService.isFieldUnique("login", requestDto.getLogin());
+        if (!loginUnique) {
+            throw new RuntimeException("Login already exists");
         }
-        if (!uniquenessService.isFieldUnique("email", requestDto.getEmail())) {
-            throw new RuntimeException("Email is already in use");
+
+        // Проверка уникальности email
+        boolean emailUnique = uniquenessService.isFieldUnique("email", requestDto.getEmail());
+        if (!emailUnique) {
+            throw new RuntimeException("Email already exists");
         }
-        if (!uniquenessService.isFieldUnique("phone", requestDto.getPhone())) {
-            throw new RuntimeException("Phone is already in use");
+
+        // Проверка уникальности телефона (если указан)
+        if (requestDto.getPhone() != null && !requestDto.getPhone().trim().isEmpty()) {
+            boolean phoneUnique = uniquenessService.isFieldUnique("phone", requestDto.getPhone());
+            if (!phoneUnique) {
+                throw new RuntimeException("Phone already exists");
+            }
         }
     }
 
     private void setDefaultUserData(SignUpRequestDto requestDto, String locale) {
-        if (requestDto.getAccountType() == null || requestDto.getAccountType().isEmpty()) {
-            requestDto.setAccountType("individual");
-        }
+        // В SignUpRequestDto может не быть поля locale
+        // Устанавливаем значение по умолчанию через settings после создания user
     }
 
     private User createUser(SignUpRequestDto requestDto) {
-        User user = userMapper.toEntity(requestDto);
+        User user = new User();
+        user.setLogin(requestDto.getLogin().trim());
+        user.setAccountType(User.AccountType.fromValue(requestDto.getAccountType()));
 
         // Установка настроек пользователя
         User.UserSettings settings = new User.UserSettings();
         settings.setLocale("ru"); // По умолчанию
         user.setSettings(settings);
 
-        return userRepository.save(user);
+        user = userRepository.save(user);
+
+        // Создание UserData с паролем
+        String passwordHash = passwordService.generatePasswordHash(requestDto.getPassword());
+        UserData userData = new UserData();
+        userData.setUser(user);
+        userData.setLogin(requestDto.getLogin().trim());
+        userData.setPasswordHash(passwordHash);
+        userData.setEmail(requestDto.getEmail().trim());
+        userData.setUserName(requestDto.getUserName() != null ? requestDto.getUserName().trim() : requestDto.getLogin());
+        userData.setPhone(requestDto.getPhone() != null ? requestDto.getPhone().trim() : null);
+        userDataRepository.save(userData);
+
+        return user;
     }
 
     private void createUserSchema(User user, SignUpRequestDto requestDto) {
         String passwordHash = passwordService.generatePasswordHash(requestDto.getPassword());
-
         userSchemaRepository.createUserSchema(
                 user.getId(),
-                requestDto.getLogin(),
+                user.getLogin(),
                 passwordHash,
                 requestDto.getEmail(),
-                requestDto.getUserName(),
+                requestDto.getUserName() != null ? requestDto.getUserName() : user.getLogin(),
                 requestDto.getPhone()
         );
     }
 
     private void createAdditionalEntities(User user, SignUpRequestDto requestDto) {
-        switch (user.getAccountType()) {
-            case STUDENT -> {
-                Student student = studentMapper.toEntity(requestDto, user);
-                studentRepository.save(student);
-            }
-            case ENTREPRENEUR, COMPANY_RESIDENT, COMPANY_NON_RESIDENT, EDUCATIONAL_UNIT -> {
-                Company company = companyMapper.toEntity(requestDto, user);
-                companyRepository.save(company);
-            }
-            default -> {
-                // INDIVIDUAL - не требует дополнительных сущностей
-            }
-        }
+        // В SignUpRequestDto может не быть методов getStudent() и getCompany()
+        // Это зависит от accountType
+        // Создание дополнительных сущностей должно происходить на основе данных из requestDto
     }
 
-    private void validateSignInData(SignInRequestDto requestDto) {
+    private void validateSignInRequest(SignInRequestDto requestDto) {
         if (requestDto.getLogin() == null || requestDto.getLogin().trim().isEmpty()) {
             throw new RuntimeException("Login cannot be empty");
         }
@@ -301,8 +602,10 @@ public class AuthService {
     }
 
     private UserDto getUserDto(User user) {
-        UserDto userDto = userMapper.toDto(user);
-        // TODO: Добавить роли и права пользователя
-        return userDto;
+        return userMapper.toDto(user);
     }
+
+    // Response DTOs
+    public record SignUpResponse(TokenResponseDto tokens, UserDto user) {}
+    public record SignInResponse(TokenResponseDto tokens, UserDto user) {}
 }

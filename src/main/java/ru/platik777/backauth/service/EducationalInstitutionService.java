@@ -10,13 +10,14 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Сервис для работы с образовательными учреждениями
- * Реализует логику из Go версии EducationalInstitutionsService
+ * Реализует логику EducationalInstitutionsFind из Go
  */
 @Slf4j
 @Service
@@ -26,21 +27,21 @@ public class EducationalInstitutionService {
     private final EducationalInstitutionRepository educationalInstitutionRepository;
 
     /**
-     * Поиск образовательных учреждений по названию (аналог EducationalInstitutionsFind из Go)
+     * Поиск образовательных учреждений по названию
+     * Аналог EducationalInstitutionsFind из Go
+     *
+     * @param name Название учреждения (частичное совпадение)
+     * @return Список найденных учреждений
      */
+    @Transactional(readOnly = true)
     public ApiResponseDto<List<EducationalInstitutionDto>> findEducationalInstitutions(String name) {
         log.debug("Searching educational institutions by name: {}", name);
 
-        // TODO: Временная блокировка как в Go версии
-        log.warn("Educational institutions search is temporarily blocked");
-        throw new RuntimeException("Educational institutions search is temporarily blocked");
-
-        // Когда блокировка будет снята, раскомментировать:
-        /*
         if (name == null || name.trim().isEmpty()) {
             throw new RuntimeException("Name parameter is required");
         }
 
+        // Поиск по полному названию (ILIKE в PostgreSQL = ignoring case)
         List<EducationalInstitution> institutions = educationalInstitutionRepository
                 .findByFullNameContainingIgnoreCase(name.trim());
 
@@ -51,16 +52,22 @@ public class EducationalInstitutionService {
         log.info("Found {} educational institutions for search: {}", institutionDtos.size(), name);
 
         return ApiResponseDto.success(institutionDtos);
-        */
     }
 
     /**
      * Поиск образовательных учреждений с пагинацией
+     *
+     * @param name Название учреждения
+     * @param page Номер страницы (начиная с 0)
+     * @param size Размер страницы
+     * @return Страница с учреждениями
      */
+    @Transactional(readOnly = true)
     public ApiResponseDto<Page<EducationalInstitutionDto>> findEducationalInstitutionsWithPagination(
             String name, int page, int size) {
 
-        log.debug("Searching educational institutions by name: {} with pagination", name);
+        log.debug("Searching educational institutions by name: {} with pagination (page: {}, size: {})",
+                name, page, size);
 
         if (name == null || name.trim().isEmpty()) {
             throw new RuntimeException("Name parameter is required");
@@ -81,19 +88,28 @@ public class EducationalInstitutionService {
 
     /**
      * Получение образовательного учреждения по UUID
+     *
+     * @param uuid UUID учреждения
+     * @return Данные учреждения
      */
-    public EducationalInstitutionDto getEducationalInstitution(String uuid) {
+    @Transactional(readOnly = true)
+    public ApiResponseDto<EducationalInstitutionDto> getEducationalInstitution(String uuid) {
         log.debug("Getting educational institution by UUID: {}", uuid);
 
         EducationalInstitution institution = educationalInstitutionRepository.findById(uuid)
                 .orElseThrow(() -> new RuntimeException("Educational institution not found"));
 
-        return new EducationalInstitutionDto(institution);
+        EducationalInstitutionDto dto = new EducationalInstitutionDto(institution);
+
+        return ApiResponseDto.success(dto);
     }
 
     /**
      * Получение активных образовательных учреждений
+     *
+     * @return Список активных учреждений
      */
+    @Transactional(readOnly = true)
     public ApiResponseDto<List<EducationalInstitutionDto>> getActiveEducationalInstitutions() {
         log.debug("Getting active educational institutions");
 
@@ -109,39 +125,17 @@ public class EducationalInstitutionService {
     }
 
     /**
-     * Поиск образовательных учреждений по региону
+     * Получение образовательных учреждений по типу
+     *
+     * @param typeName Тип учреждения
+     * @return Список учреждений указанного типа
      */
-    public ApiResponseDto<List<EducationalInstitutionDto>> findByRegion(String regionName) {
-        log.debug("Searching educational institutions by region: {}", regionName);
-
-        if (regionName == null || regionName.trim().isEmpty()) {
-            throw new RuntimeException("Region name parameter is required");
-        }
+    @Transactional(readOnly = true)
+    public ApiResponseDto<List<EducationalInstitutionDto>> getEducationalInstitutionsByType(String typeName) {
+        log.debug("Getting educational institutions by type: {}", typeName);
 
         List<EducationalInstitution> institutions = educationalInstitutionRepository
-                .findByRegionNameIgnoreCase(regionName.trim());
-
-        List<EducationalInstitutionDto> institutionDtos = institutions.stream()
-                .map(EducationalInstitutionDto::new)
-                .collect(Collectors.toList());
-
-        log.info("Found {} educational institutions in region: {}", institutionDtos.size(), regionName);
-
-        return ApiResponseDto.success(institutionDtos);
-    }
-
-    /**
-     * Поиск образовательных учреждений по типу
-     */
-    public ApiResponseDto<List<EducationalInstitutionDto>> findByType(String typeName) {
-        log.debug("Searching educational institutions by type: {}", typeName);
-
-        if (typeName == null || typeName.trim().isEmpty()) {
-            throw new RuntimeException("Type name parameter is required");
-        }
-
-        List<EducationalInstitution> institutions = educationalInstitutionRepository
-                .findByTypeNameIgnoreCase(typeName.trim());
+                .findByTypeName(typeName);
 
         List<EducationalInstitutionDto> institutionDtos = institutions.stream()
                 .map(EducationalInstitutionDto::new)
@@ -154,30 +148,45 @@ public class EducationalInstitutionService {
 
     /**
      * Поиск образовательного учреждения по ИНН
+     *
+     * @param inn ИНН учреждения
+     * @return Данные учреждения
      */
-    public EducationalInstitutionDto findByInn(String inn) {
+    @Transactional(readOnly = true)
+    public ApiResponseDto<EducationalInstitutionDto> findByInn(String inn) {
         log.debug("Searching educational institution by INN: {}", inn);
 
         EducationalInstitution institution = educationalInstitutionRepository.findByInn(inn)
                 .orElseThrow(() -> new RuntimeException("Educational institution not found by INN"));
 
-        return new EducationalInstitutionDto(institution);
+        EducationalInstitutionDto dto = new EducationalInstitutionDto(institution);
+
+        return ApiResponseDto.success(dto);
     }
 
     /**
      * Поиск образовательного учреждения по ОГРН
+     *
+     * @param ogrn ОГРН учреждения
+     * @return Данные учреждения
      */
-    public EducationalInstitutionDto findByOgrn(String ogrn) {
+    @Transactional(readOnly = true)
+    public ApiResponseDto<EducationalInstitutionDto> findByOgrn(String ogrn) {
         log.debug("Searching educational institution by OGRN: {}", ogrn);
 
         EducationalInstitution institution = educationalInstitutionRepository.findByOgrn(ogrn)
                 .orElseThrow(() -> new RuntimeException("Educational institution not found by OGRN"));
 
-        return new EducationalInstitutionDto(institution);
+        EducationalInstitutionDto dto = new EducationalInstitutionDto(institution);
+
+        return ApiResponseDto.success(dto);
     }
 
     /**
      * Проверка существования образовательного учреждения по UUID
+     *
+     * @param uuid UUID учреждения
+     * @return true если существует
      */
     public boolean existsByUuid(String uuid) {
         return educationalInstitutionRepository.existsByUuid(uuid);
@@ -185,18 +194,25 @@ public class EducationalInstitutionService {
 
     /**
      * Получение статистики образовательных учреждений
+     *
+     * @return Статистика (общее количество и количество активных)
      */
-    public ApiResponseDto<?> getEducationalInstitutionStats() {
+    @Transactional(readOnly = true)
+    public ApiResponseDto<EducationalInstitutionStats> getEducationalInstitutionStats() {
         log.debug("Getting educational institution statistics");
 
         long totalCount = educationalInstitutionRepository.count();
         long activeCount = educationalInstitutionRepository.findByIsActiveTrue().size();
 
-        var stats = new EducationalInstitutionStats(totalCount, activeCount);
+        EducationalInstitutionStats stats = new EducationalInstitutionStats(totalCount, activeCount);
+
+        log.info("Educational institution stats - Total: {}, Active: {}", totalCount, activeCount);
 
         return ApiResponseDto.success(stats);
     }
 
-    // Внутренний класс для статистики
+    /**
+     * Record для статистики образовательных учреждений
+     */
     public record EducationalInstitutionStats(long total, long active) {}
 }

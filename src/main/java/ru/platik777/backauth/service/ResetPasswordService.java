@@ -1,7 +1,7 @@
 package ru.platik777.backauth.service;
 
 import ru.platik777.backauth.dto.request.ResetPasswordRequestDto;
-import ru.platik777.backauth.dto.request.ResetPasswordUpdateDto;
+import ru.platik777.backauth.dto.request.ResetPasswordUpdateRequestDto;
 import ru.platik777.backauth.dto.response.ApiResponseDto;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.repository.UserRepository;
@@ -109,7 +109,7 @@ public class ResetPasswordService {
      * Обновление пароля (аналог ResetPasswordUpdate из Go)
      */
     @Transactional
-    public ApiResponseDto<String> resetPasswordUpdate(ResetPasswordUpdateDto requestDto) {
+    public ApiResponseDto<String> resetPasswordUpdate(ResetPasswordUpdateRequestDto requestDto) {
         log.debug("Updating password with reset token");
 
         // Проверка токена

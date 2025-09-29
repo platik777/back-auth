@@ -2,62 +2,92 @@ package ru.platik777.backauth.config.properties;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.context.properties.NestedConfigurationProperty;
+import org.springframework.stereotype.Component;
 
+/**
+ * Конфигурационные свойства приложения
+ * Соответствует конфигурации из Go проекта
+ */
 @Data
+@Component
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
 
+    /**
+     * Базовый URL приложения
+     */
     private String baseUrl;
+
+    /**
+     * Настройки JWT
+     */
+    private JwtProperties jwt;
+
+    /**
+     * Соль для хеширования паролей
+     */
     private String salt;
 
-    @NestedConfigurationProperty
-    private JwtProperties jwt = new JwtProperties();
+    /**
+     * Настройки SMTP
+     */
+    private SmtpProperties smtp;
 
-    @NestedConfigurationProperty
-    private SmtpProperties smtp = new SmtpProperties();
+    /**
+     * Настройки back-access сервиса
+     */
+    private BackAccessProperties backAccess;
 
-    @NestedConfigurationProperty
-    private BackAccessProperties backAccess = new BackAccessProperties();
+    /**
+     * Настройки back-log сервиса
+     */
+    private BackLogProperties backLog;
 
-    @NestedConfigurationProperty
-    private BackLogProperties backLog = new BackLogProperties();
+    // ============================================
+    // Вложенные классы конфигурации
+    // ============================================
 
     @Data
     public static class JwtProperties {
-        @NestedConfigurationProperty
-        private TokenConfig app = new TokenConfig();
+        private TokenPairProperties app;
+        private TokenPairProperties base;
+        private TokenProperties resetPassword;
+        private TokenProperties apiKey;
+    }
 
-        @NestedConfigurationProperty
-        private TokenConfig base = new TokenConfig();
+    @Data
+    public static class TokenPairProperties {
+        private TokenProperties access;
+        private TokenProperties refresh;
+    }
 
-        @NestedConfigurationProperty
-        private SimpleTokenConfig resetPassword = new SimpleTokenConfig();
-
-        @NestedConfigurationProperty
-        private SimpleTokenConfig apiKey = new SimpleTokenConfig();
-
-        @Data
-        public static class TokenConfig {
-            @NestedConfigurationProperty
-            private SimpleTokenConfig access = new SimpleTokenConfig();
-
-            @NestedConfigurationProperty
-            private SimpleTokenConfig refresh = new SimpleTokenConfig();
-        }
-
-        @Data
-        public static class SimpleTokenConfig {
-            private String secret;
-            private long expiration;
-        }
+    @Data
+    public static class TokenProperties {
+        private String secret;
+        private Long expiration;
     }
 
     @Data
     public static class SmtpProperties {
+        /**
+         * Флаг отправки в логи вместо реальной отправки (для тестирования)
+         */
         private boolean sendToLogs;
+
+        /**
+         * Email для отправки в поддержку
+         */
         private String supportEmail;
+
+        /**
+         * Email продукта
+         */
         private String productEmail;
+
+        /**
+         * Email отправителя
+         */
+        private String senderEmail;
     }
 
     @Data
