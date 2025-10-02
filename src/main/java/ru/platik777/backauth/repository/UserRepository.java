@@ -6,40 +6,64 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
+/**
+ * Репозиторий для работы с таблицей public.users
+ * Соответствует методам из PostgreSqlAuth.go
+ *
+ * ВАЖНО: Этот репозиторий работает ТОЛЬКО с public.users
+ * Для работы с userN.user_data используйте UserDataRepository
+ */
 @Repository
 public interface UserRepository extends JpaRepository<User, Integer> {
 
     /**
-     * Поиск пользователя по логину
+     * GetUserByLogin / SearchUserIdByLogin
+     * Go: SELECT user_id, login, billing_id, created_at, account_type, settings
+     *     FROM public.users WHERE login=$1
      */
-    Optional<User> findByLoginIgnoreCase(String login);
+    Optional<User> findByLoginIgnoreCase(@Param("login") String login);
 
     /**
-     * Проверка существования пользователя по логину
+     * FieldValueUniqueness (login)
+     * Go: SELECT CASE WHEN EXISTS(SELECT * FROM public.users WHERE login=$1)
+     *     THEN 'false' ELSE 'true' END
      */
-    boolean existsByLoginIgnoreCase(String login);
+    boolean existsByLoginIgnoreCase(@Param("login") String login);
 
     /**
-     * Поиск пользователя с полными данными по логину
+     * SearchUserIdByLogin
+     * Go: SELECT user_id FROM public.users WHERE login=$1
      */
-    @Query("SELECT u FROM User u " +
-            "LEFT JOIN FETCH u.userData ud " +
-            "WHERE LOWER(u.login) = LOWER(:login)")
-    Optional<User> findByLoginWithUserData(@Param("login") String login);
+    Optional<Integer> findUserIdByLogin(@Param("login") String login);
 
     /**
-     * Поиск пользователя с полными данными по ID
+     * getUserIdsList - получение всех ID пользователей
+     * Go: SELECT user_id FROM public.users
+     *
+     * Используется в SearchUserIdByEmail и SearchUserIdByPhone
+     * для перебора всех схем userN.user_data
      */
-    @Query("SELECT u FROM User u " +
-            "LEFT JOIN FETCH u.userData ud " +
-            "WHERE u.id = :id")
-    Optional<User> findByIdWithUserData(@Param("id") Integer id);
+    List<Integer> findAllUserIds();
 
     /**
-     * Получение всех ID пользователей
+     * GetCompaniesOfUser - получение пользователя со всеми компаниями
+     * Go: используется в getCompany для получения owner
      */
-    @Query("SELECT u.id FROM User u")
-    java.util.List<Integer> findAllUserIds();
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.ownedCompanies WHERE u.id = :userId")
+    Optional<User> findByIdWithCompanies(@Param("userId") Integer userId);
+
+    /**
+     * GetStudentDataByUserId - получение пользователя со студенческими данными
+     */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.student WHERE u.id = :userId")
+    Optional<User> findByIdWithStudent(@Param("userId") Integer userId);
+
+    /**
+     * Получение пользователей по типу аккаунта
+     * Может использоваться для фильтрации по account_type
+     */
+    List<User> findByAccountType(@Param("accountType") User.AccountType accountType);
 }

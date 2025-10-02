@@ -1,24 +1,29 @@
 package ru.platik777.backauth.controller;
 
-import ru.platik777.backauth.dto.ApiKeyDto;
-import ru.platik777.backauth.dto.request.ApiKeyRequestDto;
-import ru.platik777.backauth.dto.response.ApiResponseDto;
-import ru.platik777.backauth.dto.response.AuthorizationResponseDto;
-import ru.platik777.backauth.service.ApiKeyService;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.platik777.backauth.dto.request.ApiKeyCheckRequest;
+import ru.platik777.backauth.dto.request.ApiKeyCreateRequest;
+import ru.platik777.backauth.dto.response.ApiKeyAuthResponse;
+import ru.platik777.backauth.dto.response.ApiKeyResponse;
+import ru.platik777.backauth.dto.response.StatusResponse;
+import ru.platik777.backauth.service.ApiKeyService;
 
 import java.util.List;
 
 /**
- * Контроллер для работы с API ключами
- * Реализует эндпоинты из handler.go (apikey.go)
+ * Контроллер управления API ключами
+ * Соответствует auth.go API key endpoints
  *
- * Paths:
- * - /api/v1/key - управление API ключами
+ * Базовый путь: /api/v1/key
+ * Go:
+ * - apiv1R.HandleFunc("/key", h.apiKeyCreate).Methods(http.MethodPost)
+ * - apiv1R.HandleFunc("/key/{token}", h.apiKeyDelete).Methods(http.MethodDelete)
+ * - apiv1R.HandleFunc("/key", h.apiKeyGet).Methods(http.MethodGet)
+ * - apiv1R.HandleFunc("/key/check", h.checkApiKeyAuthorization).Methods(http.MethodPost)
  */
 @Slf4j
 @RestController
@@ -29,74 +34,75 @@ public class ApiKeyController {
     private final ApiKeyService apiKeyService;
 
     /**
-     * Создание нового API ключа
      * POST /api/v1/key
-     * Аналог apiKeyCreate из Go handler
+     * Создание нового API ключа
+     * Go: apiv1R.HandleFunc("/key", h.apiKeyCreate).Methods(http.MethodPost)
+     * ВАЖНО: userId передается через header
      */
     @PostMapping
-    public ResponseEntity<ApiResponseDto<ApiKeyDto>> createApiKey(
-            @Valid @RequestBody ApiKeyRequestDto requestDto,
-            @RequestHeader("userId") Integer userId) {
+    public ResponseEntity<ApiKeyResponse> createApiKey(
+            @RequestHeader("userId") Integer userId,
+            @RequestBody ApiKeyCreateRequest request) {
 
-        log.info("Create API key request for userId: {}", userId);
+        log.info("Creating API key for userId: {}, name: {}", userId, request.getName());
 
-        requestDto.setUserId(userId);
-        ApiKeyDto apiKey = apiKeyService.createApiKey(requestDto);
+        ApiKeyResponse response = apiKeyService.createApiKey(
+                userId,
+                request.getName(),
+                request.getExpireAt()
+        );
 
-        return ResponseEntity.ok(ApiResponseDto.success(apiKey));
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     /**
-     * Получение списка API ключей пользователя
-     * GET /api/v1/key
-     * Аналог apiKeyGet из Go handler
-     */
-    @GetMapping
-    public ResponseEntity<ApiResponseDto<List<ApiKeyDto>>> getApiKeys(
-            @RequestHeader("userId") Integer userId) {
-
-        log.info("Get API keys request for userId: {}", userId);
-
-        List<ApiKeyDto> apiKeys = apiKeyService.getApiKeys(userId);
-
-        return ResponseEntity.ok(ApiResponseDto.success(apiKeys));
-    }
-
-    /**
-     * Удаление API ключа
      * DELETE /api/v1/key/{token}
-     * Аналог apiKeyDelete из Go handler
+     * Мягкое удаление API ключа
+     * Go: apiv1R.HandleFunc("/key/{token}", h.apiKeyDelete).Methods(http.MethodDelete)
+     * ВАЖНО: userId передается через header, token через path
      */
     @DeleteMapping("/{token}")
-    public ResponseEntity<ApiResponseDto<String>> deleteApiKey(
-            @PathVariable String token,
-            @RequestHeader("userId") Integer userId) {
+    public ResponseEntity<StatusResponse> deleteApiKey(
+            @RequestHeader("userId") Integer userId,
+            @PathVariable String token) {
 
-        log.info("Delete API key request for userId: {}", userId);
+        log.info("Deleting API key for userId: {}", userId);
 
-        ApiResponseDto<String> response = apiKeyService.deleteApiKey(userId, token);
+        StatusResponse response = apiKeyService.deleteApiKey(userId, token);
 
         return ResponseEntity.ok(response);
     }
 
     /**
-     * Проверка авторизации по API ключу
-     * POST /api/v1/key/check
-     * Аналог checkApiKeyAuthorization из Go handler
+     * GET /api/v1/key
+     * Получение всех активных API ключей пользователя
+     * Go: apiv1R.HandleFunc("/key", h.apiKeyGet).Methods(http.MethodGet)
+     * ВАЖНО: userId передается через header
      */
-    @PostMapping("/check")
-    public ResponseEntity<ApiResponseDto<AuthorizationResponseDto>> checkApiKeyAuthorization(
-            @RequestBody CheckApiKeyRequest request) {
+    @GetMapping
+    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(
+            @RequestHeader("userId") Integer userId) {
 
-        log.debug("Check API key authorization request");
+        log.debug("Getting API keys for userId: {}", userId);
 
-        AuthorizationResponseDto response = apiKeyService.checkApiKeyAuthorization(request.apikey());
+        List<ApiKeyResponse> response = apiKeyService.getApiKeys(userId);
 
-        return ResponseEntity.ok(ApiResponseDto.success(response));
+        return ResponseEntity.ok(response);
     }
 
     /**
-     * DTO для проверки API ключа
+     * POST /api/v1/key/check
+     * Проверка авторизации по API ключу
+     * Go: apiv1R.HandleFunc("/key/check", h.checkApiKeyAuthorization).Methods(http.MethodPost)
      */
-    public record CheckApiKeyRequest(String apikey) {}
+    @PostMapping("/check")
+    public ResponseEntity<ApiKeyAuthResponse> checkApiKeyAuthorization(
+            @RequestBody ApiKeyCheckRequest request) {
+
+        log.debug("Checking API key authorization");
+
+        ApiKeyAuthResponse response = apiKeyService.checkApiKeyAuthorization(request.getToken());
+
+        return ResponseEntity.ok(response);
+    }
 }

@@ -7,41 +7,26 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface CompanyRepository extends JpaRepository<Company, Integer> {
 
     /**
-     * Поиск компаний по владельцу
+     * GetCompaniesOfUser - получение компаний пользователя по owner_id
+     * Соответствует методу GetCompaniesOfUser из Go
      */
     List<Company> findByOwnerId(Integer ownerId);
 
     /**
-     * Поиск компаний где пользователь является участником
-     */
-    @Query(value = "SELECT c.* FROM company c WHERE c.users_list::jsonb ? :userId::text", nativeQuery = true)
-    List<Company> findByUserInUsersList(@Param("userId") String userId);
-
-    /**
-     * Поиск компаний по ИНН
-     */
-    List<Company> findByTaxNumber(String taxNumber);
-
-    /**
-     * Поиск компаний по ОГРН
-     */
-    List<Company> findByOgrn(String ogrn);
-
-    /**
-     * Поиск компаний по ОГРНИП
-     */
-    List<Company> findByOgrnip(String ogrnip);
-
-    /**
-     * Получение компании с владельцем
+     * getCompany - получение компании с владельцем
+     * Используется в GetCompaniesOfUser для получения полных данных
      */
     @Query("SELECT c FROM Company c " +
             "LEFT JOIN FETCH c.owner " +
             "WHERE c.companyId = :companyId")
-    Company findByIdWithOwner(@Param("companyId") Integer companyId);
+    Optional<Company> findByIdWithOwner(@Param("companyId") Integer companyId);
+
+    // Методы save(), findById() наследуются от JpaRepository
+    // и соответствуют createCompany, getCompany из Go
 }

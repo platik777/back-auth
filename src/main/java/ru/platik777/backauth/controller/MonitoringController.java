@@ -1,21 +1,23 @@
 package ru.platik777.backauth.controller;
 
-import ru.platik777.backauth.dto.response.ApiResponseDto;
-import ru.platik777.backauth.service.MonitoringService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RestController;
+import ru.platik777.backauth.dto.response.StatusResponse;
+import ru.platik777.backauth.service.MonitoringService;
 
 /**
- * Контроллер для мониторинга состояния сервиса
- * Реализует эндпоинты из handler.go
+ * Контроллер мониторинга системы
+ * Соответствует monitor.go endpoints
  *
- * Paths:
- * - /monitor/status - статус сервиса
- * - /config/update - обновление конфигурации (TODO)
+ * Go routes:
+ * - monitorR := r.PathPrefix("/monitor").Subrouter()
+ * - monitorR.HandleFunc("/status", h.status).Methods(http.MethodGet)
+ * - configR := r.PathPrefix("/config").Subrouter()
+ * - configR.HandleFunc("/update", h.updateConfig).Methods(http.MethodPut)
  */
 @Slf4j
 @RestController
@@ -25,58 +27,112 @@ public class MonitoringController {
     private final MonitoringService monitoringService;
 
     /**
-     * Получение статуса сервиса
      * GET /monitor/status
-     * Аналог status из Go handler
+     * Проверка статуса сервиса
+     * Go: monitorR.HandleFunc("/status", h.status).Methods(http.MethodGet)
      */
     @GetMapping("/monitor/status")
-    public ResponseEntity<ApiResponseDto<String>> getStatus() {
-        log.debug("Get service status request");
+    public ResponseEntity<StatusResponse> getStatus() {
+        log.debug("Status check requested");
 
-        ApiResponseDto<String> response = monitoringService.getServiceStatus();
-        return ResponseEntity.ok(response);
+        // Базовая проверка здоровья
+        try {
+            MonitoringService.SystemMetrics metrics = monitoringService.getSystemMetrics();
+
+            return ResponseEntity.ok(
+                    StatusResponse.builder()
+                            .status(true)
+                            .message("Service is running. Uptime: " + metrics.getUptime())
+                            .build()
+            );
+        } catch (Exception e) {
+            log.error("Status check failed", e);
+            return ResponseEntity.status(503).body(
+                    StatusResponse.builder()
+                            .status(false)
+                            .message("Service is unhealthy: " + e.getMessage())
+                            .build()
+            );
+        }
     }
 
     /**
-     * Получение детального статуса здоровья сервиса
-     * GET /monitor/health
-     */
-    @GetMapping("/monitor/health")
-    public ResponseEntity<ApiResponseDto<Map<String, Object>>> getHealth() {
-        log.debug("Get service health request");
-
-        ApiResponseDto<Map<String, Object>> response = monitoringService.getHealthStatus();
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Получение информации о сервисе
-     * GET /monitor/info
-     */
-    @GetMapping("/monitor/info")
-    public ResponseEntity<ApiResponseDto<Map<String, Object>>> getInfo() {
-        log.debug("Get service info request");
-
-        ApiResponseDto<Map<String, Object>> response = monitoringService.getServiceInfo();
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Обновление конфигурации (динамическое)
      * PUT /config/update
-     * Аналог updateConfig из Go handler
+     * Обновление конфигурации
+     * Go: configR.HandleFunc("/update", h.updateConfig).Methods(http.MethodPut)
      *
-     * TODO: Реализовать динамическое обновление конфигурации
-     * В Go используется viper для перезагрузки конфигов
-     * В Spring Boot можно использовать @RefreshScope или Spring Cloud Config
+     * ПРИМЕЧАНИЕ: В Spring Boot обычно используется Spring Cloud Config
+     * или actuator/refresh для перезагрузки конфигурации
      */
     @PutMapping("/config/update")
-    public ResponseEntity<ApiResponseDto<String>> updateConfig() {
-        log.warn("Config update endpoint called - not implemented yet");
+    public ResponseEntity<StatusResponse> updateConfig() {
+        log.info("Config update requested");
 
-        // TODO: Реализовать обновление конфигурации
+        // TODO: Реализовать логику обновления конфигурации
+        // Опции:
+        // 1. @RefreshScope для бинов
+        // 2. Spring Cloud Config
+        // 3. Actuator /actuator/refresh endpoint
+
         return ResponseEntity.ok(
-                ApiResponseDto.success("Config update not implemented yet")
+                StatusResponse.builder()
+                        .status(true)
+                        .message("Config update endpoint not implemented. Use Spring Cloud Config or /actuator/refresh")
+                        .build()
         );
+    }
+
+    // ==================== ДОПОЛНИТЕЛЬНЫЕ ENDPOINTS ДЛЯ МОНИТОРИНГА ====================
+
+    /**
+     * GET /monitor/metrics
+     * Системные метрики (дополнительно)
+     */
+    @GetMapping("/monitor/metrics")
+    public ResponseEntity<MonitoringService.SystemMetrics> getSystemMetrics() {
+        log.debug("System metrics requested");
+
+        MonitoringService.SystemMetrics metrics = monitoringService.getSystemMetrics();
+
+        return ResponseEntity.ok(metrics);
+    }
+
+    /**
+     * GET /monitor/tokens
+     * Статистика токенов (дополнительно)
+     */
+    @GetMapping("/monitor/tokens")
+    public ResponseEntity<MonitoringService.TokenStatistics> getTokenStatistics() {
+        log.debug("Token statistics requested");
+
+        MonitoringService.TokenStatistics stats = monitoringService.getTokenStatistics();
+
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * GET /monitor/users
+     * Статистика пользователей (дополнительно)
+     */
+    @GetMapping("/monitor/users")
+    public ResponseEntity<MonitoringService.UserStatistics> getUserStatistics() {
+        log.debug("User statistics requested");
+
+        MonitoringService.UserStatistics stats = monitoringService.getUserStatistics();
+
+        return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * GET /monitor/report
+     * Полный отчет о состоянии системы (дополнительно)
+     */
+    @GetMapping("/monitor/report")
+    public ResponseEntity<MonitoringService.MonitoringReport> getFullReport() {
+        log.debug("Full monitoring report requested");
+
+        MonitoringService.MonitoringReport report = monitoringService.getFullReport();
+
+        return ResponseEntity.ok(report);
     }
 }

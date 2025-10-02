@@ -1,139 +1,84 @@
 package ru.platik777.backauth.service;
 
-import ru.platik777.backauth.config.properties.AppProperties;
-import ru.platik777.backauth.repository.SaltRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.repository.SaltRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 /**
- * Сервис для работы с паролями
- * Реализует логику хеширования из Go версии с использованием SHA1 + соль
+ * Сервис работы с паролями
+ * Соответствует части service.go (generatePasswordHash)
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class PasswordService {
 
-    private final AppProperties appProperties;
     private final SaltRepository saltRepository;
 
     /**
-     * Генерация хеша пароля (аналог Go функции generatePasswordHash)
-     * Использует SHA1 + статическая соль + динамическая соль из БД
+     * Генерация хеша пароля
+     * Go: func generatePasswordHash(logger go_logger.Logger, password string)
+     *
+     * ВАЖНО: Алгоритм должен точно соответствовать Go версии:
+     * 1. Хешируем пароль SHA-1
+     * 2. Добавляем соль К БАЙТАМ хеша (не к hex строке!)
+     * 3. Конвертируем результат в hex
      */
     public String generatePasswordHash(String password) {
         try {
+            // Получаем соль из БД (аналог models.Salt в Go)
+            String salt = saltRepository.getSalt();
+
+            // Создаем SHA-1 хеш
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
 
-            // Добавляем пароль
+            // Хешируем пароль
             digest.update(password.getBytes(StandardCharsets.UTF_8));
 
-            // Добавляем статическую соль из конфигурации (аналог models.Salt)
-            digest.update(appProperties.getSalt().getBytes(StandardCharsets.UTF_8));
+            // КРИТИЧНО: Добавляем соль к байтам хеша, а не к hex строке!
+            // В Go: hash.Sum([]byte(models.Salt))
+            byte[] finalHash = digest.digest(salt.getBytes(StandardCharsets.UTF_8));
 
-            // Получаем хеш
-            byte[] hashBytes = digest.digest();
-
-            // Конвертируем в hex строку
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
-
-            return hexString.toString();
+            // Конвертируем в hex (аналог fmt.Sprintf("%x", ...))
+            return bytesToHex(finalHash);
 
         } catch (NoSuchAlgorithmException e) {
-            log.error("SHA-1 algorithm not available", e);
-            throw new RuntimeException("Error generating password hash", e);
+            log.error("Error generating password hash", e);
+            throw new RuntimeException("Failed to generate password hash", e);
         }
     }
 
     /**
-     * Проверка пароля
+     * Проверка соответствия пароля хешу
      */
-    public boolean checkPassword(String rawPassword, String hashedPassword) {
-        String computedHash = generatePasswordHash(rawPassword);
-        return computedHash.equals(hashedPassword);
-    }
-
-    /**
-     * Получение соли из БД (для совместимости с Go версией)
-     */
-    public String getSaltFromDatabase() {
-        return saltRepository.getSalt();
-    }
-
-    /**
-     * Генерация хеша с учетом соли из БД (расширенная версия)
-     */
-    public String generatePasswordHashWithDbSalt(String password) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-1");
-
-            // Добавляем пароль
-            digest.update(password.getBytes(StandardCharsets.UTF_8));
-
-            // Добавляем статическую соль из конфигурации
-            digest.update(appProperties.getSalt().getBytes(StandardCharsets.UTF_8));
-
-            // Добавляем динамическую соль из БД
-            String dbSalt = getSaltFromDatabase();
-            digest.update(dbSalt.getBytes(StandardCharsets.UTF_8));
-
-            // Получаем хеш
-            byte[] hashBytes = digest.digest();
-
-            // Конвертируем в hex строку
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hashBytes) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) {
-                    hexString.append('0');
-                }
-                hexString.append(hex);
-            }
-
-            return hexString.toString();
-
-        } catch (NoSuchAlgorithmException e) {
-            log.error("SHA-1 algorithm not available", e);
-            throw new RuntimeException("Error generating password hash", e);
-        }
-    }
-
-    /**
-     * Валидация сложности пароля
-     */
-    public boolean isPasswordValid(String password) {
-        if (password == null || password.trim().isEmpty()) {
+    public boolean verifyPassword(String password, String hash) {
+        if (password == null || hash == null) {
             return false;
         }
 
-        // Минимальные требования (можно расширить)
-        return password.length() >= 6;
+        try {
+            String computedHash = generatePasswordHash(password);
+            return computedHash.equals(hash);
+        } catch (Exception e) {
+            log.error("Error verifying password", e);
+            return false;
+        }
     }
 
     /**
-     * Генерация случайного пароля
+     * Конвертация байтов в hex строку
+     * Аналог fmt.Sprintf("%x", bytes) в Go
      */
-    public String generateRandomPassword(int length) {
-        String chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-        StringBuilder password = new StringBuilder();
-
-        for (int i = 0; i < length; i++) {
-            int index = (int) (Math.random() * chars.length());
-            password.append(chars.charAt(index));
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder result = new StringBuilder();
+        for (byte b : bytes) {
+            result.append(String.format("%02x", b));
         }
-
-        return password.toString();
+        return result.toString();
     }
 }

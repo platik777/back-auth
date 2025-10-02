@@ -1,36 +1,46 @@
 package ru.platik777.backauth.entity;
 
-import jakarta.persistence.*;
 import lombok.Data;
-import lombok.EqualsAndHashCode;
 
-@Entity
-@Table(name = "user_data")
+/**
+ * DTO для данных из таблицы userN.user_data
+ *
+ * ВАЖНО: Это НЕ JPA Entity, так как таблица находится в динамической схеме userN
+ * Каждый пользователь имеет свою схему: user1.user_data, user2.user_data и т.д.
+ *
+ * В Go эта таблица создается динамически:
+ * CREATE TABLE IF NOT EXISTS userN.user_data (
+ *     login character varying(255) NOT NULL,
+ *     password_hash text NOT NULL,
+ *     email character varying(255),
+ *     user_name character varying(255),
+ *     phone character varying(30)
+ * )
+ */
 @Data
-@EqualsAndHashCode(callSuper = false)
 public class UserData {
-
-    @Id
-    @Column(name = "user_id")
-    private Integer userId;
-
-    @OneToOne(fetch = FetchType.LAZY)
-    @MapsId
-    @JoinColumn(name = "user_id")
-    private User user;
-
-    @Column(name = "login", nullable = false, length = 255)
+    /**
+     * Логин пользователя (дублируется из public.users для удобства)
+     */
     private String login;
 
-    @Column(name = "password_hash", nullable = false, columnDefinition = "TEXT")
+    /**
+     * Хеш пароля пользователя
+     */
     private String passwordHash;
 
-    @Column(name = "email", length = 255)
+    /**
+     * Email пользователя
+     */
     private String email;
 
-    @Column(name = "user_name", length = 255)
+    /**
+     * Имя пользователя
+     */
     private String userName;
 
-    @Column(name = "phone", length = 30)
+    /**
+     * Телефон пользователя
+     */
     private String phone;
 }

@@ -42,7 +42,6 @@ spring:
             name: admin
             password: admin
 
-# ?????????? ??????????
 management:
     endpoints:
         web:
@@ -56,35 +55,38 @@ management:
             export:
                 enabled: true
 
-# ????????? ????????? ??????????
 app:
     base-url: ${BASE_URL}
 
     jwt:
+        constants:
+            app-access-prefix: ${JWT_CONST_APP_ACCESS_PREFIX}
+            app-refresh-prefix: ${JWT_CONST_APP_REFRESH_PREFIX}
+            base-access-prefix: ${JWT_CONST_BASE_ACCESS_PREFIX}
+            base-refresh-prefix: ${JWT_CONST_BASE_REFRESH_PREFIX}
+            reset-password-prefix: ${JWT_CONST_RESET_PASSWORD_PREFIX}
+            salt: ${JWT_CONST_SALT}
+
         app:
             access:
-                secret: ${JWT_APP_ACCESS_SECRET}
-                expiration: 600000 # 10 ?????
+                expiration: ${JWT_APP_ACCESS_EXPIRATION:600000}      # 10 минут
             refresh:
-                secret: ${JWT_APP_REFRESH_SECRET}
-                expiration: 28800000 # 8 ?????
+                expiration: ${JWT_APP_REFRESH_EXPIRATION:28800000}   # 8 часов
         base:
             access:
-                secret: ${JWT_BASE_ACCESS_SECRET}
-                expiration: 600000 # 10 ?????
+                expiration: ${JWT_BASE_ACCESS_EXPIRATION:600000}
             refresh:
-                secret: ${JWT_BASE_REFRESH_SECRET}
-                expiration: 28800000 # 8 ?????
+                expiration: ${JWT_BASE_REFRESH_EXPIRATION:28800000}
         reset-password:
-            secret: ${JWT_RESET_PASSWORD_SECRET}
-            expiration: 600000 # 10 ?????
+            expiration: ${JWT_RESET_PASSWORD_EXPIRATION:600000}
+
         api-key:
             secret: ${JWT_API_KEY_SECRET}
 
-    salt: ${PASSWORD_SALT}
+
 
     smtp:
-        send-to-logs: ${SMTP_SEND_TO_LOGS}
+        send-to-logs: ${SMTP_SEND_TO_LOGS:false}
         support-email: ${SMTP_SUPPORT_EMAIL}
         product-email: ${SMTP_PRODUCT_EMAIL}
 
@@ -92,6 +94,7 @@ app:
         host: ${BACK_ACCESS_HOST}
         port: ${BACK_ACCESS_PORT}
         key-edit-access: ${KEY_EDIT_ACCESS}
+        timeout: ${BACK_ACCESS_TIMEOUT:30000}
 
     back-log:
         host: ${BACK_LOG_HOST}

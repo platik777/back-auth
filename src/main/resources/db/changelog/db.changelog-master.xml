@@ -6,11 +6,11 @@
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
 
     <!-- Создание основных таблиц -->
-    <include file="db/changelog/v1.0/001-create-users-table.xml"/>
+    <!-- <include file="db/changelog/v1.0/001-create-users-table.xml"/>
     <include file="db/changelog/v1.0/002-create-company-table.xml"/>
     <include file="db/changelog/v1.0/003-create-students-table.xml"/>
     <include file="db/changelog/v1.0/004-create-educational-institutions-table.xml"/>
     <include file="db/changelog/v1.0/005-create-api-keys-table.xml"/>
-    <include file="db/changelog/v1.0/006-create-salt-values-table.xml"/>
+    <include file="db/changelog/v1.0/006-create-salt-values-table.xml"/> -->
 
 </databaseChangeLog>

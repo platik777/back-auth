@@ -1,49 +1,34 @@
 package ru.platik777.backauth.mapper;
 
-import ru.platik777.backauth.dto.UserDto;
-import ru.platik777.backauth.dto.request.SignUpRequestDto;
-import ru.platik777.backauth.entity.User;
-import ru.platik777.backauth.entity.UserData;
 import org.springframework.stereotype.Component;
+import ru.platik777.backauth.dto.request.SignUpRequest;
+import ru.platik777.backauth.entity.User;
 
-import java.util.ArrayList;
-
+/**
+ * Маппер для преобразования DTO в User Entity и обратно
+ */
 @Component
 public class UserMapper {
 
-    public UserDto toDto(User user) {
-        UserDto dto = new UserDto(user);
+    /**
+     * Маппинг UserDto в User Entity
+     */
+    public User toEntity(SignUpRequest.UserDto dto) {
+        if (dto == null) {
+            throw new IllegalArgumentException("User data cannot be null");
+        }
 
-        // Добавляем роли и разрешения (будут заполнены в сервисе)
-        dto.setRoles(new ArrayList<>());
-        dto.setPermissions(new ArrayList<>());
-
-        return dto;
-    }
-
-    public User toEntity(SignUpRequestDto requestDto) {
         User user = new User();
-        user.setLogin(requestDto.getLogin().toLowerCase());
-        user.setAccountType(User.AccountType.fromValue(requestDto.getAccountType()));
-        user.setBillingId(0); // По умолчанию 0
+        user.setLogin(dto.getLogin());
+        user.setPasswordHash(dto.getPassword());
+        user.setEmail(dto.getEmail());
+        user.setUserName(dto.getUserName());
+        user.setPhone(dto.getPhone());
 
-        // Настройки пользователя
-        User.UserSettings settings = new User.UserSettings();
-        settings.setLocale("ru"); // По умолчанию русский
-        user.setSettings(settings);
+        if (dto.getAccountType() != null) {
+            user.setAccountType(User.AccountType.fromValue(dto.getAccountType()));
+        }
 
         return user;
-    }
-
-    public UserData toUserData(SignUpRequestDto requestDto, User user, String passwordHash) {
-        UserData userData = new UserData();
-        userData.setUser(user);
-        userData.setLogin(requestDto.getLogin().toLowerCase());
-        userData.setPasswordHash(passwordHash);
-        userData.setEmail(requestDto.getEmail().toLowerCase());
-        userData.setUserName(requestDto.getUserName());
-        userData.setPhone(requestDto.getPhone().toLowerCase());
-
-        return userData;
     }
 }

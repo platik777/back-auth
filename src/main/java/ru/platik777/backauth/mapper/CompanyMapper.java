@@ -1,46 +1,41 @@
 package ru.platik777.backauth.mapper;
 
-import ru.platik777.backauth.dto.CompanyDto;
-import ru.platik777.backauth.dto.request.SignUpRequestDto;
-import ru.platik777.backauth.entity.Company;
-import ru.platik777.backauth.entity.User;
 import org.springframework.stereotype.Component;
+import ru.platik777.backauth.dto.request.SignUpRequest;
+import ru.platik777.backauth.entity.Company;
 
-import java.util.ArrayList;
-import java.util.List;
-
+/**
+ * Маппер для преобразования DTO в Company Entity
+ */
 @Component
 public class CompanyMapper {
 
-    public CompanyDto toDto(Company company) {
-        return new CompanyDto(company);
-    }
+    /**
+     * Маппинг CompanyDto в Company Entity
+     */
+    public Company toEntity(SignUpRequest.CompanyDto dto) {
+        if (dto == null) {
+            return null;
+        }
 
-    public Company toEntity(SignUpRequestDto requestDto, User owner) {
         Company company = new Company();
-        company.setOwner(owner);
-        company.setBankName(requestDto.getBankName());
-        company.setAccountNumber(requestDto.getAccountNumber());
-        company.setBic(requestDto.getBic());
-        company.setKppBank(requestDto.getKppBank());
-        company.setTaxBank(requestDto.getTaxBank());
-        company.setCorrespondentAccount(requestDto.getCorrespondentAccount());
-        company.setFullTitle(requestDto.getFullTitle());
-        company.setOgrn(requestDto.getOgrn());
-        company.setOgrnip(requestDto.getOgrnip());
-        company.setKpp(requestDto.getKpp());
-        company.setLegalAddress(requestDto.getLegalAddress());
-        company.setPostAddress(requestDto.getPostAddress());
-        company.setTaxNumber(requestDto.getTaxNumber());
-        company.setCountry(requestDto.getCountry() != null ? requestDto.getCountry() : "russia");
-        company.setKio(requestDto.getKio());
-        company.setLicenseNumber(requestDto.getLicenseNumber());
-        company.setLicenseIssueDate(requestDto.getLicenseIssueDate());
-
-        // Добавляем владельца в список пользователей компании
-        List<Integer> usersList = new ArrayList<>();
-        usersList.add(owner.getId());
-        company.setUsersList(usersList);
+        company.setFullTitle(dto.getFullTitle());
+        company.setCountry(dto.getCountry());
+        company.setLegalAddress(dto.getLegalAddress());
+        company.setPostAddress(dto.getPostAddress());
+        company.setAccountNumber(dto.getAccountNumber());
+        company.setBankName(dto.getBankName());
+        company.setBic(dto.getBic());
+        company.setTaxBank(dto.getTaxBank());
+        company.setKppBank(dto.getKppBank());
+        company.setCorrespondentAccount(dto.getCorrespondentAccount());
+        company.setTaxNumber(dto.getTaxNumber());
+        company.setOgrn(dto.getOgrn());
+        company.setOgrnip(dto.getOgrnip());
+        company.setKpp(dto.getKpp());
+        company.setKio(dto.getKio());
+        company.setLicenseNumber(dto.getLicenseNumber());
+        company.setLicenseIssueDate(dto.getLicenseIssueDate());
 
         return company;
     }

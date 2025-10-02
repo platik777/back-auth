@@ -1,430 +1,411 @@
 package ru.platik777.backauth.service;
 
-import ru.platik777.backauth.config.properties.AppProperties;
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
-import io.jsonwebtoken.security.SignatureException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Сервис для работы с JWT токенами
- * Полностью соответствует jwt.go из Go проекта
+ * Сервис работы с JWT токенами
+ * Соответствует jwt.go
  *
- * Включает создание и валидацию:
- * - App Access/Refresh токенов
- * - Base Access/Refresh токенов
- * - ResetPassword токенов
- * - API Key токенов
+ * ВАЖНО: Использует JJWT 0.11.x/0.12.x API
+ * Время жизни токенов берется из конфигурации
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class JwtService {
 
-    private final AppProperties appProperties;
+    private final KeyService keyService;
+    private final TokenBlacklistService tokenBlacklistService;
 
-    // ============================================
-    // Создание токенов (аналог create* функций из Go)
-    // ============================================
+    // Время жизни токенов из конфигурации (в миллисекундах)
+    // Go: const TimeAToken = 10 * time.Minute
+    @Value("${app.jwt.app.access.expiration}")
+    private long appAccessTokenExpiration;
+
+    // Go: const TimeRToken = 8 * time.Hour
+    @Value("${app.jwt.app.refresh.expiration}")
+    private long appRefreshTokenExpiration;
+
+    @Value("${app.jwt.base.access.expiration}")
+    private long baseAccessTokenExpiration;
+
+    @Value("${app.jwt.base.refresh.expiration}")
+    private long baseRefreshTokenExpiration;
+
+    @Value("${app.jwt.reset-password.expiration}")
+    private long resetPasswordExpiration;
 
     /**
-     * Создание App Access токена
-     * Аналог createAppAccessAndRefreshTokens (часть 1)
+     * Создание всех типов токенов (App + Base)
+     * Go: используется в RefreshAppTokenByBaseToken
+     *
+     * @param userId ID пользователя
+     * @return Map с 4 токенами
      */
-    public String createAppAccessToken(Integer userId) {
-        log.debug("Creating app access token for userId: {}", userId);
-        return createToken(
-                userId,
-                appProperties.getJwt().getApp().getAccess().getSecret(),
-                appProperties.getJwt().getApp().getAccess().getExpiration()
+    public TokensResponse createAllTokens(Integer userId) {
+        log.debug("Creating all tokens for userId: {}", userId);
+
+        validateUserId(userId);
+
+        Map<String, String> appTokens = createAppTokens(userId);
+        Map<String, String> baseTokens = createBaseTokens(userId);
+
+        return new TokensResponse(
+                appTokens.get("accessToken"),
+                appTokens.get("refreshToken"),
+                baseTokens.get("accessToken"),
+                baseTokens.get("refreshToken")
         );
     }
 
     /**
-     * Создание App Refresh токена
-     * Аналог createAppAccessAndRefreshTokens (часть 2)
+     * Создание App Access и Refresh токенов
+     * Go: func createAppAccessAndRefreshTokens(logger go_logger.Logger, userId int,
+     *                                          signingAppKeyAccess, signingAppKeyRefresh string)
+     *
+     * @param userId ID пользователя
+     * @return Map с accessToken и refreshToken
      */
-    public String createAppRefreshToken(Integer userId) {
-        log.debug("Creating app refresh token for userId: {}", userId);
-        return createToken(
+    public Map<String, String> createAppTokens(Integer userId) {
+        log.debug("Creating App tokens for userId: {}", userId);
+
+        validateUserId(userId);
+
+        String accessToken = createToken(
                 userId,
-                appProperties.getJwt().getApp().getRefresh().getSecret(),
-                appProperties.getJwt().getApp().getRefresh().getExpiration()
+                appAccessTokenExpiration,
+                keyService.getSigningAppKeyAccess(),
+                TokenType.APP_ACCESS
         );
+
+        String refreshToken = createToken(
+                userId,
+                appRefreshTokenExpiration,
+                keyService.getSigningAppKeyRefresh(),
+                TokenType.APP_REFRESH
+        );
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken);
+
+        log.debug("App tokens created successfully for userId: {}", userId);
+        return tokens;
     }
 
     /**
-     * Создание Base Access токена
-     * Аналог createBaseAccessAndRefreshTokens (часть 1)
+     * Создание Base Access и Refresh токенов
+     * Go: func createBaseAccessAndRefreshTokens(logger go_logger.Logger, userId int,
+     *                                           signingBaseKeyAccess, signingBaseKeyRefresh string)
+     *
+     * @param userId ID пользователя
+     * @return Map с accessToken и refreshToken
      */
-    public String createBaseAccessToken(Integer userId) {
-        log.debug("Creating base access token for userId: {}", userId);
-        return createToken(
-                userId,
-                appProperties.getJwt().getBase().getAccess().getSecret(),
-                appProperties.getJwt().getBase().getAccess().getExpiration()
-        );
-    }
+    public Map<String, String> createBaseTokens(Integer userId) {
+        log.debug("Creating Base tokens for userId: {}", userId);
 
-    /**
-     * Создание Base Refresh токена
-     * Аналог createBaseAccessAndRefreshTokens (часть 2)
-     */
-    public String createBaseRefreshToken(Integer userId) {
-        log.debug("Creating base refresh token for userId: {}", userId);
-        return createToken(
+        validateUserId(userId);
+
+        String accessToken = createToken(
                 userId,
-                appProperties.getJwt().getBase().getRefresh().getSecret(),
-                appProperties.getJwt().getBase().getRefresh().getExpiration()
+                baseAccessTokenExpiration,
+                keyService.getSigningBaseKeyAccess(),
+                TokenType.BASE_ACCESS
         );
+
+        String refreshToken = createToken(
+                userId,
+                baseRefreshTokenExpiration,
+                keyService.getSigningBaseKeyRefresh(),
+                TokenType.BASE_REFRESH
+        );
+
+        Map<String, String> tokens = new HashMap<>();
+        tokens.put("accessToken", accessToken);
+        tokens.put("refreshToken", refreshToken);
+
+        log.debug("Base tokens created successfully for userId: {}", userId);
+        return tokens;
     }
 
     /**
      * Создание токена для сброса пароля
-     * Аналог createTokenForResetPassword из Go
+     * Go: func createTokenForResetPassword(logger go_logger.Logger, userId int,
+     *                                      signingKeyResetPassword string)
+     *
+     * @param userId ID пользователя
+     * @return Reset password токен
      */
     public String createResetPasswordToken(Integer userId) {
         log.debug("Creating reset password token for userId: {}", userId);
-        return createToken(
+
+        validateUserId(userId);
+
+        String token = createToken(
                 userId,
-                appProperties.getJwt().getResetPassword().getSecret(),
-                appProperties.getJwt().getResetPassword().getExpiration()
+                resetPasswordExpiration,
+                keyService.getSigningKeyResetPassword(),
+                TokenType.RESET_PASSWORD
         );
+
+        log.debug("Reset password token created for userId: {}", userId);
+        return token;
     }
 
     /**
-     * Создание API Key токена
-     * Аналог createApiKeyToken из Go
+     * Создание API ключа с кастомным временем истечения
+     * Go: func createApiKeyToken(logger go_logger.Logger, userId int,
+     *                            timeExpiration time.Time)
+     *
+     * @param userId ID пользователя
+     * @param expireAt Дата истечения
+     * @return API ключ токен
      */
     public String createApiKeyToken(Integer userId, LocalDateTime expireAt) {
-        log.debug("Creating API key token for userId: {} with expireAt: {}", userId, expireAt);
+        log.debug("Creating API key token for userId: {} with expiration: {}",
+                userId, expireAt);
 
-        Date expirationDate = Date.from(expireAt.atZone(ZoneId.systemDefault()).toInstant());
+        validateUserId(userId);
+
+        if (expireAt == null || expireAt.isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Invalid expiration date for API key");
+        }
+
+        long expirationMillis = expireAt
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli();
+
         Date issuedAt = new Date();
+        Date expiration = new Date(expirationMillis);
 
-        SecretKey key = Keys.hmacShaKeyFor(
-                appProperties.getJwt().getApiKey().getSecret().getBytes(StandardCharsets.UTF_8)
-        );
+        SecretKey key = getSecretKey(keyService.getSigningKeyApiKey());
 
-        return Jwts.builder()
-                .setSubject(userId.toString())
+        String token = Jwts.builder()
+                .claim("userId", userId)
+                .claim("type", TokenType.API_KEY.name())
                 .setIssuedAt(issuedAt)
-                .setExpiration(expirationDate)
+                .setExpiration(expiration)
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
-    }
 
-    // ============================================
-    // Парсинг и валидация токенов (аналог parseToken из Go)
-    // ============================================
-
-    /**
-     * Парсинг App Access токена
-     * Аналог parseToken с signingAppKeyAccess
-     */
-    public Integer parseAppAccessToken(String token) {
-        log.debug("Parsing app access token");
-        return parseToken(token, appProperties.getJwt().getApp().getAccess().getSecret());
+        log.debug("API key token created for userId: {}", userId);
+        return token;
     }
 
     /**
-     * Парсинг App Refresh токена
-     * Аналог parseToken с signingAppKeyRefresh
+     * Парсинг токена и получение userId
+     * Go: func parseToken(token, key string) (userId int, err error)
+     *
+     * @param token JWT токен
+     * @param signingKey Ключ для валидации
+     * @return userId из токена
+     * @throws JwtException если токен невалидный
      */
-    public Integer parseAppRefreshToken(String token) {
-        log.debug("Parsing app refresh token");
-        return parseToken(token, appProperties.getJwt().getApp().getRefresh().getSecret());
-    }
-
-    /**
-     * Парсинг Base Access токена
-     * Аналог parseToken с signingBaseKeyAccess
-     */
-    public Integer parseBaseAccessToken(String token) {
-        log.debug("Parsing base access token");
-        return parseToken(token, appProperties.getJwt().getBase().getAccess().getSecret());
-    }
-
-    /**
-     * Парсинг Base Refresh токена
-     * Аналог parseToken с signingBaseKeyRefresh
-     */
-    public Integer parseBaseRefreshToken(String token) {
-        log.debug("Parsing base refresh token");
-        return parseToken(token, appProperties.getJwt().getBase().getRefresh().getSecret());
-    }
-
-    /**
-     * Парсинг Reset Password токена
-     * Аналог parseToken с signingKeyResetPassword
-     */
-    public Integer parseResetPasswordToken(String token) {
-        log.debug("Parsing reset password token");
-        return parseToken(token, appProperties.getJwt().getResetPassword().getSecret());
-    }
-
-    /**
-     * Парсинг API Key токена
-     * Аналог parseToken с SigningKeyApiKey
-     */
-    public Integer parseApiKeyToken(String token) {
-        log.debug("Parsing API key token");
-        return parseToken(token, appProperties.getJwt().getApiKey().getSecret());
-    }
-
-    // ============================================
-    // Валидация токенов с обработкой ошибок (validate*)
-    // ============================================
-
-    /**
-     * Валидация App Access токена с полной обработкой ошибок
-     */
-    public Integer validateAppAccessToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getApp().getAccess().getSecret(),
-                "App Access"
-        );
-    }
-
-    /**
-     * Валидация App Refresh токена с полной обработкой ошибок
-     */
-    public Integer validateAppRefreshToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getApp().getRefresh().getSecret(),
-                "App Refresh"
-        );
-    }
-
-    /**
-     * Валидация Base Access токена с полной обработкой ошибок
-     */
-    public Integer validateBaseAccessToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getBase().getAccess().getSecret(),
-                "Base Access"
-        );
-    }
-
-    /**
-     * Валидация Base Refresh токена с полной обработкой ошибок
-     */
-    public Integer validateBaseRefreshToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getBase().getRefresh().getSecret(),
-                "Base Refresh"
-        );
-    }
-
-    /**
-     * Валидация Reset Password токена с полной обработкой ошибок
-     */
-    public Integer validateResetPasswordToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getResetPassword().getSecret(),
-                "Reset Password"
-        );
-    }
-
-    /**
-     * Валидация API Key токена с полной обработкой ошибок
-     */
-    public Integer validateApiKeyToken(String token) {
-        return validateTokenWithErrorHandling(
-                token,
-                appProperties.getJwt().getApiKey().getSecret(),
-                "API Key"
-        );
-    }
-
-    // ============================================
-    // Проверка истечения токена без выброса исключения
-    // ============================================
-
-    /**
-     * Проверка, истек ли токен
-     * Возвращает true если токен истек или невалиден
-     */
-    public boolean isTokenExpired(String token, String secret) {
-        try {
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-
-            Claims claims = Jwts.parser()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            return claims.getExpiration().before(new Date());
-        } catch (ExpiredJwtException e) {
-            return true;
-        } catch (Exception e) {
-            log.warn("Token validation failed: {}", e.getMessage());
-            return true;
-        }
-    }
-
-    /**
-     * Извлечение userId из токена без полной валидации
-     * Работает даже для истекших токенов
-     */
-    public Integer extractUserIdFromToken(String token, String secret) {
-        try {
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-
-            Claims claims = Jwts.parser()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-
-            return Integer.parseInt(claims.getSubject());
-        } catch (ExpiredJwtException e) {
-            // Токен истек, но можем извлечь userId из claims
-            return Integer.parseInt(e.getClaims().getSubject());
-        } catch (Exception e) {
-            log.error("Failed to extract userId from token", e);
-            throw new RuntimeException("Invalid token format");
-        }
-    }
-
-    // ============================================
-    // Приватные вспомогательные методы
-    // ============================================
-
-    /**
-     * Универсальный метод создания токена
-     * Аналог общей логики из jwt.go
-     */
-    private String createToken(Integer userId, String secret, Long expirationMs) {
-        if (userId == null) {
-            throw new IllegalArgumentException("UserId cannot be null");
-        }
-        if (secret == null || secret.isEmpty()) {
-            throw new IllegalArgumentException("Secret cannot be empty");
-        }
-
-        Date now = new Date();
-        Date expiryDate = new Date(now.getTime() + expirationMs);
-
-        SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
-
-        return Jwts.builder()
-                .setSubject(userId.toString())
-                .setIssuedAt(now)
-                .setExpiration(expiryDate)
-                .signWith(key, SignatureAlgorithm.HS256)
-                .compact();
-    }
-
-    /**
-     * Универсальный метод парсинга токена
-     * Аналог parseToken из Go
-     * Возвращает userId или выбрасывает исключение
-     */
-    private Integer parseToken(String token, String secret) {
-        if (token == null || token.trim().isEmpty()) {
+    public Integer parseToken(String token, String signingKey) {
+        if (token == null || token.isEmpty()) {
             throw new IllegalArgumentException("Token cannot be empty");
         }
 
+        if (signingKey == null || signingKey.isEmpty()) {
+            throw new IllegalArgumentException("Signing key cannot be empty");
+        }
+
         try {
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            SecretKey key = getSecretKey(signingKey);
 
             Claims claims = Jwts.parser()
-                    .setSigningKey(key)
+                    .verifyWith(key)
                     .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+                    .parseSignedClaims(token)
+                    .getPayload();
 
-            String userIdStr = claims.getSubject();
-            if (userIdStr == null || userIdStr.isEmpty()) {
-                throw new RuntimeException("UserId is empty in token");
+            Integer userId = claims.get("userId", Integer.class);
+
+            // Go: if claims.UserId == 0
+            if (userId == null || userId == 0) {
+                throw new JwtException("UserId is empty in token");
             }
 
-            return Integer.parseInt(userIdStr);
+            log.debug("Token parsed successfully. UserId: {}", userId);
+            return userId;
 
         } catch (ExpiredJwtException e) {
-            log.warn("Token expired");
-            throw new RuntimeException("Token expired", e);
-        } catch (UnsupportedJwtException e) {
-            log.error("Unsupported JWT token");
-            throw new RuntimeException("Unsupported token", e);
+            log.debug("Token expired: {}", e.getMessage());
+            throw new JwtException("Token expired", e);
+
         } catch (MalformedJwtException e) {
-            log.error("Invalid JWT token format");
-            throw new RuntimeException("Invalid token format", e);
-        } catch (SignatureException e) {
-            log.error("Invalid JWT signature");
-            throw new RuntimeException("Invalid signature", e);
-        } catch (IllegalArgumentException e) {
-            log.error("JWT claims string is empty");
-            throw new RuntimeException("Empty claims", e);
+            log.warn("Malformed token: {}", e.getMessage());
+            throw new JwtException("Invalid token format", e);
+
+        } catch (io.jsonwebtoken.security.SecurityException e) {
+            log.warn("Invalid signature: {}", e.getMessage());
+            throw new JwtException("Invalid token signature", e);
+
         } catch (Exception e) {
-            log.error("JWT parsing failed", e);
-            throw new RuntimeException("Token parsing failed", e);
+            log.error("Unexpected error parsing token", e);
+            throw new JwtException("Token parsing error", e);
         }
     }
 
     /**
-     * Валидация токена с детальной обработкой ошибок
-     * Аналог логики валидации из Go с проверкой различных типов ошибок
+     * Проверка токена на нахождение в черном списке
+     * Используется для reset password токенов (одноразовые)
+     *
+     * @param token JWT токен
+     * @return true если токен в blacklist
      */
-    private Integer validateTokenWithErrorHandling(String token, String secret, String tokenType) {
-        if (token == null || token.trim().isEmpty()) {
-            log.error("{} token is empty", tokenType);
-            throw new RuntimeException(tokenType + " token cannot be empty");
+    public boolean isTokenBlacklisted(String token) {
+        return tokenBlacklistService.isBlacklisted(token);
+    }
+
+    /**
+     * Добавление токена в черный список
+     * Используется после использования reset password токена
+     *
+     * @param token JWT токен
+     */
+    public void addToBlacklist(String token) {
+        if (token != null && !token.isEmpty()) {
+            tokenBlacklistService.addToken(token);
+            log.debug("Token added to blacklist");
+        }
+    }
+
+    // ==================== PRIVATE METHODS ====================
+
+    /**
+     * Базовый метод создания токена
+     *
+     * @param userId ID пользователя
+     * @param validityMillis Время жизни в миллисекундах
+     * @param signingKey Ключ для подписи
+     * @param tokenType Тип токена (для отладки и claims)
+     * @return JWT токен
+     */
+    private String createToken(Integer userId, long validityMillis,
+                               String signingKey, TokenType tokenType) {
+
+        validateUserId(userId);
+
+        if (validityMillis <= 0) {
+            throw new IllegalArgumentException(
+                    "Token validity must be positive: " + validityMillis
+            );
         }
 
+        Date now = new Date();
+        Date expiration = new Date(now.getTime() + validityMillis);
+
         try {
-            SecretKey key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+            SecretKey key = getSecretKey(signingKey);
 
-            Claims claims = Jwts.parser()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
+            String token = Jwts.builder()
+                    .claim("userId", userId)
+                    .claim("type", tokenType.name())
+                    .setIssuedAt(now)
+                    .setExpiration(expiration)
+                    .signWith(key, SignatureAlgorithm.HS256)
+                    .compact();
 
-            String userIdStr = claims.getSubject();
-            if (userIdStr == null || userIdStr.isEmpty()) {
-                log.error("UserId is empty in {} token", tokenType);
-                throw new RuntimeException("UserId is empty in token");
+            log.debug("Token created: type={}, userId={}, validity={}ms",
+                    tokenType, userId, validityMillis);
+
+            return token;
+
+        } catch (Exception e) {
+            log.error("Error creating {} token for userId: {}", tokenType, userId, e);
+            throw new RuntimeException("Failed to create token", e);
+        }
+    }
+
+    /**
+     * Создание SecretKey из строки
+     *
+     * ВАЖНО: JJWT требует минимум 256 бит (32 байта) для HS256
+     * Если ключ короче - используем SHA-256 для создания ключа нужной длины
+     *
+     * @param keyString Ключ из конфигурации
+     * @return SecretKey для подписи
+     */
+    private SecretKey getSecretKey(String keyString) {
+        try {
+            byte[] keyBytes = keyString.getBytes(StandardCharsets.UTF_8);
+
+            // JJWT требует минимум 256 бит (32 байта) для HS256
+            if (keyBytes.length < 32) {
+                log.debug("Key is shorter than 32 bytes, using SHA-256 hash");
+
+                // Используем SHA-256 для получения ключа нужной длины
+                MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                keyBytes = digest.digest(keyBytes);
             }
 
-            Integer userId = Integer.parseInt(userIdStr);
-            log.debug("{} token validated successfully for userId: {}", tokenType, userId);
+            return Keys.hmacShaKeyFor(keyBytes);
 
-            return userId;
-
-        } catch (ExpiredJwtException e) {
-            log.warn("{} token expired", tokenType);
-            throw new RuntimeException(tokenType + " token expired");
-        } catch (UnsupportedJwtException e) {
-            log.error("Unsupported {} token", tokenType);
-            throw new RuntimeException("Unsupported " + tokenType + " token");
-        } catch (MalformedJwtException e) {
-            log.error("Invalid {} token format", tokenType);
-            throw new RuntimeException("Invalid " + tokenType + " token format");
-        } catch (SignatureException e) {
-            log.error("Invalid {} token signature", tokenType);
-            throw new RuntimeException("Invalid " + tokenType + " token signature");
-        } catch (IllegalArgumentException e) {
-            log.error("{} token claims string is empty", tokenType);
-            throw new RuntimeException(tokenType + " token claims are empty");
         } catch (Exception e) {
-            log.error("{} token validation failed: {}", tokenType, e.getMessage());
-            throw new RuntimeException(tokenType + " token validation failed");
+            log.error("Error creating secret key", e);
+            throw new RuntimeException("Failed to create secret key", e);
+        }
+    }
+
+    /**
+     * Валидация userId
+     */
+    private void validateUserId(Integer userId) {
+        if (userId == null || userId <= 0) {
+            throw new IllegalArgumentException("Invalid userId: " + userId);
+        }
+    }
+
+    // ==================== INNER CLASSES ====================
+
+    /**
+     * Типы токенов для отладки и логирования
+     */
+    private enum TokenType {
+        APP_ACCESS,
+        APP_REFRESH,
+        BASE_ACCESS,
+        BASE_REFRESH,
+        RESET_PASSWORD,
+        API_KEY
+    }
+
+    /**
+     * DTO для всех токенов
+     */
+    public record TokensResponse(
+            String accessAppToken,
+            String refreshAppToken,
+            String accessBaseToken,
+            String refreshBaseToken
+    ) {}
+
+    /**
+     * Кастомное исключение для JWT ошибок
+     */
+    public static class JwtException extends RuntimeException {
+        public JwtException(String message) {
+            super(message);
+        }
+
+        public JwtException(String message, Throwable cause) {
+            super(message, cause);
         }
     }
 }

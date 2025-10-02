@@ -1,154 +1,281 @@
 package ru.platik777.backauth.exception;
 
-import ru.platik777.backauth.dto.response.ApiResponseDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.context.request.WebRequest;
+import ru.platik777.backauth.service.*;
 
-import java.util.HashMap;
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
  * Глобальный обработчик исключений
- * Аналог системы обработки ошибок из Go (go_logger с кодами ошибок)
+ * Соответствует error handling в Go
  */
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     /**
-     * Обработка общих RuntimeException
+     * Обработка исключений аутентификации/авторизации
+     * Go: возвращает 401 Unauthorized
      */
-    @ExceptionHandler(RuntimeException.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleRuntimeException(RuntimeException ex) {
-        log.error("Runtime exception occurred", ex);
+    @ExceptionHandler(AuthService.AuthException.class)
+    public ResponseEntity<ErrorResponse> handleAuthException(
+            AuthService.AuthException ex,
+            WebRequest request) {
 
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                ex.getMessage() != null ? ex.getMessage() : "Internal server error"
-        );
+        log.warn("Authentication/Authorization error: {}", ex.getMessage());
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(response);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
     }
 
     /**
-     * Обработка ошибок валидации (Bean Validation)
+     * Обработка исключений валидации
+     * Go: возвращает 400 Bad Request
      */
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ApiResponseDto<Map<String, String>>> handleValidationException(
-            MethodArgumentNotValidException ex) {
+    @ExceptionHandler(ValidationService.ValidationException.class)
+    public ResponseEntity<ValidationErrorResponse> handleValidationException(
+            ValidationService.ValidationException ex,
+            WebRequest request) {
 
-        log.warn("Validation exception occurred");
+        log.warn("Validation error: {} (field: {})", ex.getMessage(), ex.getFieldName());
 
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
-            String errorMessage = error.getDefaultMessage();
-            errors.put(fieldName, errorMessage);
-        });
+        ValidationErrorResponse error = ValidationErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Validation Error")
+                .message(ex.getMessage())
+                .fieldName(ex.getFieldName())
+                .path(extractPath(request))
+                .build();
 
-        ApiResponseDto<Map<String, String>> response = new ApiResponseDto<>();
-        response.setStatus(false);
-        response.setMessage("Validation failed");
-        response.setData(errors);
-
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     /**
-     * Обработка отсутствующего обязательного заголовка
+     * Обработка исключений API ключей
+     * Go: возвращает 400 или 401
      */
-    @ExceptionHandler(MissingRequestHeaderException.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleMissingHeaderException(
-            MissingRequestHeaderException ex) {
+    @ExceptionHandler(ApiKeyService.ApiKeyException.class)
+    public ResponseEntity<ErrorResponse> handleApiKeyException(
+            ApiKeyService.ApiKeyException ex,
+            WebRequest request) {
 
-        log.warn("Missing required header: {}", ex.getHeaderName());
+        log.warn("API Key error: {}", ex.getMessage());
 
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                String.format("Required header '%s' is missing", ex.getHeaderName())
-        );
+        // Определяем статус: если ключ невалидный - 401, если другая ошибка - 400
+        HttpStatus status = ex.getMessage().contains("invalid") || ex.getMessage().contains("expired")
+                ? HttpStatus.UNAUTHORIZED
+                : HttpStatus.BAD_REQUEST;
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(status.value())
+                .error(status.getReasonPhrase())
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(status).body(error);
     }
 
     /**
-     * Обработка ошибок преобразования типов параметров
+     * Обработка исключений сброса пароля
+     * Go: возвращает 400 Bad Request
      */
-    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleTypeMismatchException(
-            MethodArgumentTypeMismatchException ex) {
+    @ExceptionHandler(ResetPasswordService.ResetPasswordException.class)
+    public ResponseEntity<ErrorResponse> handleResetPasswordException(
+            ResetPasswordService.ResetPasswordException ex,
+            WebRequest request) {
 
-        log.warn("Type mismatch for parameter: {}", ex.getName());
+        log.warn("Reset password error: {}", ex.getMessage());
 
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                String.format("Invalid value for parameter '%s'", ex.getName())
-        );
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Обработка исключений образовательных учреждений
+     * Go: возвращает 400 Bad Request
+     */
+    @ExceptionHandler(EducationalInstitutionService.EducationalInstitutionException.class)
+    public ResponseEntity<ErrorResponse> handleEducationalInstitutionException(
+            EducationalInstitutionService.EducationalInstitutionException ex,
+            WebRequest request) {
+
+        log.warn("Educational institution error: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+    }
+
+    /**
+     * Обработка JWT исключений
+     * Go: возвращает 401 Unauthorized
+     */
+    @ExceptionHandler(JwtService.JwtException.class)
+    public ResponseEntity<ErrorResponse> handleJwtException(
+            JwtService.JwtException ex,
+            WebRequest request) {
+
+        log.warn("JWT error: {}", ex.getMessage());
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("Unauthorized")
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+    }
+
+    /**
+     * Обработка исключений отправки email
+     * Go: обычно логируется, но не прерывает выполнение
+     */
+    @ExceptionHandler(EmailService.EmailSendException.class)
+    public ResponseEntity<ErrorResponse> handleEmailSendException(
+            EmailService.EmailSendException ex,
+            WebRequest request) {
+
+        log.error("Email send error: {}", ex.getMessage(), ex);
+
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("Failed to send email")
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
     }
 
     /**
      * Обработка IllegalArgumentException
+     * Go: возвращает 400 Bad Request
      */
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleIllegalArgumentException(
-            IllegalArgumentException ex) {
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            WebRequest request) {
 
-        log.warn("Illegal argument exception: {}", ex.getMessage());
+        log.warn("Illegal argument: {}", ex.getMessage());
 
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                ex.getMessage() != null ? ex.getMessage() : "Invalid argument"
-        );
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(extractPath(request))
+                .build();
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(response);
-    }
-
-    /**
-     * Обработка NullPointerException
-     */
-    @ExceptionHandler(NullPointerException.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleNullPointerException(
-            NullPointerException ex) {
-
-        log.error("Null pointer exception occurred", ex);
-
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                "A required value was not provided"
-        );
-
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(response);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
     }
 
     /**
      * Обработка всех остальных исключений
+     * Go: возвращает 500 Internal Server Error
      */
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiResponseDto<Void>> handleGenericException(Exception ex) {
-        log.error("Unexpected exception occurred", ex);
+    public ResponseEntity<ErrorResponse> handleGlobalException(
+            Exception ex,
+            WebRequest request) {
 
-        ApiResponseDto<Void> response = ApiResponseDto.error(
-                "An unexpected error occurred. Please try again later."
-        );
+        log.error("Unexpected error", ex);
 
-        return ResponseEntity
-                .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(response);
+        ErrorResponse error = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.INTERNAL_SERVER_ERROR.value())
+                .error("Internal Server Error")
+                .message("An unexpected error occurred")
+                .path(extractPath(request))
+                .build();
+
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
+    }
+
+    // ==================== HELPER METHODS ====================
+
+    /**
+     * Извлечение пути запроса
+     */
+    private String extractPath(WebRequest request) {
+        return request.getDescription(false).replace("uri=", "");
+    }
+
+    // ==================== ERROR RESPONSE DTOs ====================
+
+    /**
+     * Базовый DTO для ошибок
+     */
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ErrorResponse {
+        private LocalDateTime timestamp;
+        private Integer status;
+        private String error;
+        private String message;
+        private String path;
+
+        /**
+         * Альтернативный формат для совместимости с Go
+         */
+        public Map<String, Object> toMap() {
+            Map<String, Object> map = new LinkedHashMap<>();
+            map.put("timestamp", timestamp);
+            map.put("status", status);
+            map.put("error", error);
+            map.put("message", message);
+            map.put("path", path);
+            return map;
+        }
+    }
+
+    /**
+     * DTO для ошибок валидации с указанием поля
+     */
+    @lombok.Data
+    @lombok.Builder
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    public static class ValidationErrorResponse {
+        private LocalDateTime timestamp;
+        private Integer status;
+        private String error;
+        private String message;
+        private String fieldName;
+        private String path;
     }
 }

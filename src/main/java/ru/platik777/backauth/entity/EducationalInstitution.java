@@ -10,8 +10,8 @@ import java.util.List;
 @Entity
 @Table(name = "educational_institutions", schema = "public")
 @Data
-@EqualsAndHashCode(callSuper = false)
-public class EducationalInstitution {
+@EqualsAndHashCode(callSuper = true)
+public class EducationalInstitution extends Tenant {
 
     @Id
     @Column(name = "educational_institutions_uuid")

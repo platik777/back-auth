@@ -26,7 +26,6 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authz -> authz
-                        // Публичные эндпоинты
                         .requestMatchers("/auth/**").permitAll()
                         .requestMatchers("/api/v1/resetPassword/**").permitAll()
                         .requestMatchers("/api/v1/internal/**").permitAll()

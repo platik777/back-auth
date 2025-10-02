@@ -5,6 +5,8 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+
+// TODO: Избавится от этого
 /**
  * Репозиторий для работы с пользовательскими схемами БД
  * Реализует логику создания схем userN для каждого пользователя
