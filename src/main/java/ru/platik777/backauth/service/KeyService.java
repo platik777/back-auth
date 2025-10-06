@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.platik777.backauth.repository.SaltRepository;
 
 /**
  * Сервис управления ключами подписи
@@ -43,20 +42,22 @@ public class KeyService {
     @Value("${app.jwt.api-key.secret}")
     private String signingKeyApiKey;
 
-    // Динамически формируемые ключи (константа + соль из БД)
-    private String signingAppKeyAccess;
-    private String signingAppKeyRefresh;
-    private String signingBaseKeyAccess;
-    private String signingBaseKeyRefresh;
-    private String signingKeyResetPassword;
-
     /**
      * -- GETTER --
-     *  Проверка инициализации сервиса
+     *  Получение ключа для подписи App Access токена
+     *  Go: GetSigningAppKeyAccess()
      */
-    // Флаг инициализации
+    // Динамически формируемые ключи (константа + соль из БД)
     @Getter
-    private volatile boolean initialized = false;
+    private String signingAppKeyAccess;
+    @Getter
+    private String signingAppKeyRefresh;
+    @Getter
+    private String signingBaseKeyAccess;
+    @Getter
+    private String signingBaseKeyRefresh;
+    @Getter
+    private String signingKeyResetPassword;
 
     /**
      * Инициализация ключей с уникальной солью из БД
@@ -79,8 +80,6 @@ public class KeyService {
                 log.error("API Key secret is not configured");
                 throw new IllegalStateException("API Key secret must be configured");
             }
-
-            this.initialized = true;
 
             log.info("KeyService initialized successfully");
             log.debug("Keys formed from config constants + DB salt (salt length: {})", salt.length());
@@ -109,53 +108,6 @@ public class KeyService {
         }
     }
 
-    // ==================== GETTERS ====================
-
-    /**
-     * Получение ключа для подписи App Access токена
-     * Go: GetSigningAppKeyAccess()
-     */
-    public String getSigningAppKeyAccess() {
-        ensureInitialized();
-        return signingAppKeyAccess;
-    }
-
-    /**
-     * Получение ключа для подписи App Refresh токена
-     * Go: GetSigningAppKeyRefresh()
-     */
-    public String getSigningAppKeyRefresh() {
-        ensureInitialized();
-        return signingAppKeyRefresh;
-    }
-
-    /**
-     * Получение ключа для подписи Base Access токена
-     * Go: GetSigningBaseKeyAccess()
-     */
-    public String getSigningBaseKeyAccess() {
-        ensureInitialized();
-        return signingBaseKeyAccess;
-    }
-
-    /**
-     * Получение ключа для подписи Base Refresh токена
-     * Go: GetSigningBaseKeyRefresh()
-     */
-    public String getSigningBaseKeyRefresh() {
-        ensureInitialized();
-        return signingBaseKeyRefresh;
-    }
-
-    /**
-     * Получение ключа для токена сброса пароля
-     * Go: GetSigningKeyResetPassword()
-     */
-    public String getSigningKeyResetPassword() {
-        ensureInitialized();
-        return signingKeyResetPassword;
-    }
-
     /**
      * Получение ключа для API токенов
      *
@@ -174,16 +126,5 @@ public class KeyService {
             throw new IllegalStateException("API Key is not configured");
         }
         return signingKeyApiKey;
-    }
-
-    /**
-     * Проверка инициализации перед использованием динамических ключей
-     */
-    private void ensureInitialized() {
-        if (!initialized) {
-            throw new IllegalStateException(
-                    "KeyService is not initialized yet. Keys are not available."
-            );
-        }
     }
 }

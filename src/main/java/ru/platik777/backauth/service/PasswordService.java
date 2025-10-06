@@ -2,8 +2,8 @@ package ru.platik777.backauth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import ru.platik777.backauth.repository.SaltRepository;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -17,8 +17,8 @@ import java.security.NoSuchAlgorithmException;
 @Service
 @RequiredArgsConstructor
 public class PasswordService {
-
-    private final SaltRepository saltRepository;
+    @Value("${app.jwt.constants.salt}")
+    private String salt;
 
     /**
      * Генерация хеша пароля
@@ -32,7 +32,6 @@ public class PasswordService {
     public String generatePasswordHash(String password) {
         try {
             // Получаем соль из БД (аналог models.Salt в Go)
-            String salt = saltRepository.getSalt();
 
             // Создаем SHA-1 хеш
             MessageDigest digest = MessageDigest.getInstance("SHA-1");

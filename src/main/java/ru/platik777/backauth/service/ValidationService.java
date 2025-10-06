@@ -6,7 +6,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import ru.platik777.backauth.entity.UserData;
 import ru.platik777.backauth.entity.Company;
-import ru.platik777.backauth.entity.Student;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.repository.UserDataRepository;
 import ru.platik777.backauth.repository.UserRepository;
@@ -43,11 +42,10 @@ public class ValidationService {
      * ВАЖНО: Этот метод изменяет объекты (нормализует данные)
      *
      * @param user Пользователь (будет изменен)
-     * @param student Студент (может быть null)
      * @param company Компания (может быть null)
      * @throws ValidationException если валидация не прошла
      */
-    public void validateSignUp(User user, Student student, Company company) {
+    public void validateSignUp(User user, Company company) {
         log.debug("Starting sign-up validation for login: {}", user.getLogin());
 
         // Нормализация данных (приведение к нижнему регистру)
@@ -66,7 +64,7 @@ public class ValidationService {
 
         // Валидация по типам аккаунтов
         // Go: switch u.AccountType
-        validateByAccountType(user, student, company);
+        validateByAccountType(user, company);
 
         log.debug("Sign-up validation completed successfully");
     }
@@ -363,21 +361,11 @@ public class ValidationService {
      * Валидация по типам аккаунтов
      * Go: switch u.AccountType в signUpValidation
      */
-    private void validateByAccountType(User user, Student student, Company company) {
+    private void validateByAccountType(User user, Company company) {
         switch (user.getAccountType()) {
             case INDIVIDUAL:
                 // Не требует дополнительных проверок
                 log.debug("Account type: INDIVIDUAL - no additional validation needed");
-                break;
-
-            case STUDENT:
-                if (student == null) {
-                    throw new ValidationException(
-                            "Student data cannot be null for STUDENT account type",
-                            "student"
-                    );
-                }
-                validateStudent(student);
                 break;
 
             case ENTREPRENEUR:
@@ -440,37 +428,6 @@ public class ValidationService {
                         "Account type is not supported: " + user.getAccountType(),
                         "accountType"
                 );
-        }
-    }
-
-    /**
-     * Валидация данных студента
-     */
-    private void validateStudent(Student student) {
-        if (student.getStartYear() == null || student.getStartYear() == 0) {
-            throw new ValidationException("StartYear cannot be empty", "startYear");
-        }
-
-        if (student.getEndYear() == null || student.getEndYear() == 0) {
-            throw new ValidationException("EndYear cannot be empty", "endYear");
-        }
-
-        if (!StringUtils.hasText(student.getStudentId())) {
-            throw new ValidationException("StudentId cannot be empty", "studentId");
-        }
-
-        if (!StringUtils.hasText(student.getEducationalInstitutionsUuid())) {
-            throw new ValidationException(
-                    "EducationalInstitutionsUuid cannot be empty",
-                    "educationalInstitutionsUuid"
-            );
-        }
-
-        if (!UUID_PATTERN.matcher(student.getEducationalInstitutionsUuid()).matches()) {
-            throw new ValidationException(
-                    "Invalid EducationalInstitutionsUuid format",
-                    "educationalInstitutionsUuid"
-            );
         }
     }
 

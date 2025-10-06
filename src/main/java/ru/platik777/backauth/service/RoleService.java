@@ -85,7 +85,6 @@ public class RoleService {
                 // Go: roleResp := struct { Roles []TypeRole; UseModules []any }
                 @SuppressWarnings("unchecked")
                 List<Map<String, Object>> roles = (List<Map<String, Object>>) body.get("roles");
-
                 @SuppressWarnings("unchecked")
                 List<Object> useModules = (List<Object>) body.get("useModules");
 

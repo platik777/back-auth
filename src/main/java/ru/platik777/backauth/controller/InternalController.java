@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.platik777.backauth.dto.request.SupportMessageRequest;
 import ru.platik777.backauth.dto.response.EducationalInstitutionSearchResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
-import ru.platik777.backauth.service.EducationalInstitutionService;
 import ru.platik777.backauth.service.InternalService;
 
 /**
@@ -24,7 +23,6 @@ import ru.platik777.backauth.service.InternalService;
 public class InternalController {
 
     private final InternalService internalService;
-    private final EducationalInstitutionService educationalInstitutionService;
 
     /**
      * POST /api/v1/internal/sendMessageToSupport
@@ -43,23 +41,6 @@ public class InternalController {
                 request.getMessage(),
                 request.getTargetSubject()
         );
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * GET /api/v1/educationalInstitutions/find
-     * Поиск образовательных учреждений
-     * Go: apiv1REducationalInstitutionsR.HandleFunc("/find", h.educationalInstitutionsFind).Methods(http.MethodGet)
-     */
-    @GetMapping("/api/v1/educationalInstitutions/find")
-    public ResponseEntity<EducationalInstitutionSearchResponse> findEducationalInstitutions(
-            @RequestParam String name) {
-
-        log.info("Searching educational institutions: {}", name);
-
-        EducationalInstitutionSearchResponse response =
-                educationalInstitutionService.findEducationalInstitutions(name);
 
         return ResponseEntity.ok(response);
     }

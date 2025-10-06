@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.*;
 import ru.platik777.backauth.dto.request.*;
 import ru.platik777.backauth.dto.response.*;
 import ru.platik777.backauth.entity.Company;
-import ru.platik777.backauth.entity.Student;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.mapper.CompanyMapper;
 import ru.platik777.backauth.mapper.StudentMapper;
@@ -44,10 +43,9 @@ public class AuthController {
                 request.getUser() != null ? request.getUser().getLogin() : "null");
 
         User user = userMapper.toEntity(request.getUser());
-        Student student = studentMapper.toEntity(request.getStudent());
         Company company = companyMapper.toEntity(request.getCompany());
 
-        SignUpResponse response = authService.signUp(user, student, company, request.getLocale());
+        SignUpResponse response = authService.signUp(user, company, request.getLocale());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -280,21 +278,6 @@ public class AuthController {
         log.debug("Get companies request for userId: {}", userId);
 
         CompaniesResponse response = authService.getCompanies(userId);
-
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * GET /api/v1/user/student
-     * Получение данных студента
-     * Go: userR.HandleFunc("/student", h.getStudentDataOfUser).Methods(http.MethodGet)
-     * ВАЖНО: userId передается через header
-     */
-    @GetMapping("/api/v1/user/student")
-    public ResponseEntity<StudentFullResponse> getStudent(@RequestHeader("userId") Integer userId) {
-        log.debug("Get student request for userId: {}", userId);
-
-        StudentFullResponse response = authService.getStudent(userId);
 
         return ResponseEntity.ok(response);
     }

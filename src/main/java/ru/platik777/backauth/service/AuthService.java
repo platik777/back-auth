@@ -25,7 +25,6 @@ public class AuthService {
     private final UserRepository userRepository;
     private final UserDataRepository userDataRepository;
     private final UserSchemaRepository userSchemaRepository;
-    private final StudentRepository studentRepository;
     private final CompanyRepository companyRepository;
     private final ProjectAccessRepository projectAccessRepository;
     private final ValidationService validationService;
@@ -40,7 +39,7 @@ public class AuthService {
      *                                  u *models.User, s *models.Student, c *models.Company, locale string)
      */
     @Transactional
-    public SignUpResponse signUp(User user, Student student, Company company, String locale) {
+    public SignUpResponse signUp(User user, Company company, String locale) {
         log.debug("SignUp started for login: {}", user.getLogin());
 
         try {
@@ -53,7 +52,7 @@ public class AuthService {
             user.setPasswordHash(hashedPassword);
 
             // 3. Теперь валидируем (пароль уже захеширован)
-            validationService.validateSignUp(user, student, company);
+            validationService.validateSignUp(user, company);
 
             // 4. Получение ролей и модулей
             RoleService.RolesResponse rolesData = roleService.getAvailableRoles();
@@ -61,7 +60,7 @@ public class AuthService {
             List<Object> modules = rolesData.useModules();
 
             // 5. Создание пользователя и связанных сущностей
-            Integer userId = createUser(user, student, company, roles);
+            Integer userId = createUser(user, company, roles);
 
             // 6. Асинхронная установка тарифа
             if (modules != null && !modules.isEmpty()) {
@@ -81,12 +80,6 @@ public class AuthService {
 
             // Добавление данных студента или компании
             switch (user.getAccountType()) {
-                case STUDENT:
-                    if (student != null) {
-                        student.setCreatedAt(createdUser.getCreatedAt());
-                        responseBuilder.student(StudentResponse.fromStudent(student));
-                    }
-                    break;
                 case ENTREPRENEUR:
                 case COMPANY_RESIDENT:
                 case COMPANY_NON_RESIDENT:
@@ -423,27 +416,6 @@ public class AuthService {
     }
 
     /**
-     * Получение данных студента
-     * Go: func (a *AuthService) GetStudent(logger go_logger.Logger, userId int)
-     */
-    @Transactional(readOnly = true)
-    public StudentFullResponse getStudent(Integer userId) {
-        log.debug("GetStudent started for userId: {}", userId);
-
-        User user = userDataRepository.getUserWithData(userId)
-                .orElseThrow(() -> new AuthException("User not found: " + userId));
-        user.setPasswordHash(null);
-
-        Student student = studentRepository.findByUserId(userId)
-                .orElseThrow(() -> new AuthException("Student not found for userId: " + userId));
-
-        return StudentFullResponse.builder()
-                .userData(UserResponse.fromUser(user))
-                .studentData(StudentResponse.fromStudent(student))
-                .build();
-    }
-
-    /**
      * Проверка принадлежности проекта пользователю
      * Go: func (a *AuthService) CheckProjectId(logger go_logger.Logger, userId, projectId int)
      */
@@ -487,7 +459,7 @@ public class AuthService {
      * Создание пользователя и его сущностей
      * Go: часть метода SignUp - создание пользователя и связанных entity
      */
-    private Integer createUser(User user, Student student, Company company,
+    private Integer createUser(User user, Company company,
                                List<Map<String, Object>> roles) {
 
         // Пароль уже захеширован на этом этапе
@@ -514,13 +486,6 @@ public class AuthService {
 
         // 3. Создание связанных сущностей
         switch (user.getAccountType()) {
-            case STUDENT:
-                if (student != null) {
-                    student.setUser(savedUser);
-                    studentRepository.save(student);
-                    log.debug("Student entity created for userId={}", userId);
-                }
-                break;
             case ENTREPRENEUR:
             case COMPANY_RESIDENT:
             case COMPANY_NON_RESIDENT:

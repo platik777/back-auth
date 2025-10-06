@@ -55,9 +55,6 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<ApiKey> apiKeys;
 
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
-    private Student student;
-
     @OneToMany(mappedBy = "owner", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     private List<Company> ownedCompanies;
 
@@ -83,6 +80,7 @@ public class User {
     @Transient
     private List<String> roles;
 
+    // TODO: по идее избавится от этого, так как есть таблица item_user_permission
     @Transient
     private List<String> permissions;
 
