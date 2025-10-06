@@ -46,15 +46,6 @@ public class MonitoringService implements HealthIndicator {
             // Проверка доступности БД
             long userCount = userRepository.count();
 
-            // Проверка инициализации KeyService
-            boolean keysInitialized = keyService.isInitialized();
-
-            if (!keysInitialized) {
-                return Health.down()
-                        .withDetail("reason", "KeyService not initialized")
-                        .build();
-            }
-
             return Health.up()
                     .withDetail("database", "connected")
                     .withDetail("userCount", userCount)
@@ -151,9 +142,6 @@ public class MonitoringService implements HealthIndicator {
      */
     private Map<String, String> getServiceStatus() {
         Map<String, String> status = new HashMap<>();
-
-        // KeyService
-        status.put("keyService", keyService.isInitialized() ? "OK" : "NOT_INITIALIZED");
 
         // TokenBlacklistService
         try {
