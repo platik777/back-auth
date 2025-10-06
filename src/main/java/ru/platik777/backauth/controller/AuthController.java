@@ -10,16 +10,16 @@ import ru.platik777.backauth.dto.response.*;
 import ru.platik777.backauth.entity.Company;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.mapper.CompanyMapper;
-import ru.platik777.backauth.mapper.StudentMapper;
 import ru.platik777.backauth.mapper.UserMapper;
+import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.AuthService;
 import ru.platik777.backauth.util.TokenExtractor;
 
 /**
  * Основной контроллер аутентификации и авторизации
- * Соответствует auth.go endpoints
  *
- * ВАЖНО: Пути точно соответствуют Go роутингу
+ * ВАЖНО: Использует @CurrentUser вместо @RequestHeader("userId")
+ * для безопасного извлечения userId из JWT токена
  */
 @Slf4j
 @RestController
@@ -28,18 +28,18 @@ public class AuthController {
 
     private final AuthService authService;
     private final UserMapper userMapper;
-    private final StudentMapper studentMapper;
     private final CompanyMapper companyMapper;
     private final TokenExtractor tokenExtractor;
+
+    // ========== ПУБЛИЧНЫЕ ENDPOINTS (без токена) ==========
 
     /**
      * POST /auth/signUp
      * Регистрация нового пользователя
-     * Go: authR.HandleFunc("/signUp", h.signUp).Methods(http.MethodPost)
      */
     @PostMapping("/auth/signUp")
     public ResponseEntity<SignUpResponse> signUp(@RequestBody SignUpRequest request) {
-        log.info("Sign-up request received for login: {}",
+        log.info("Sign-up request for login: {}",
                 request.getUser() != null ? request.getUser().getLogin() : "null");
 
         User user = userMapper.toEntity(request.getUser());
@@ -53,14 +53,13 @@ public class AuthController {
     /**
      * POST /auth/signIn
      * Вход пользователя
-     * Go: authR.HandleFunc("/signIn", h.singIn).Methods(http.MethodPost)
      */
     @PostMapping("/auth/signIn")
     public ResponseEntity<SignInResponse> signIn(
             @RequestBody SignInRequest request,
             @RequestHeader(value = "User-Agent", required = false) String userAgent) {
 
-        log.info("Sign-in request received for login: {}", request.getLogin());
+        log.info("Sign-in request for login: {}", request.getLogin());
 
         SignInResponse response = authService.signIn(
                 request.getLogin(),
@@ -71,32 +70,11 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * POST /auth/editUser
-     * Редактирование пользователя
-     * Go: authR.HandleFunc("/editUser", h.editUser).Methods(http.MethodPost)
-     */
-    @PostMapping("/auth/editUser")
-    public ResponseEntity<UserResponse> editUser(@RequestBody UpdateUserRequest request) {
-        log.info("Edit user request for userId: {}", request.getId());
-
-        UserResponse response = authService.editUser(
-                request.getId(),
-                request.getPassword(),      // current password
-                request.getNewPassword(),   // new password
-                request.getEmail(),
-                request.getPhone(),
-                request.getUserName(),
-                request.getLogin()
-        );
-
-        return ResponseEntity.ok(response);
-    }
+    // ========== ОБНОВЛЕНИЕ ТОКЕНОВ ==========
 
     /**
      * POST /auth/refreshToken
-     * Обновление app токенов
-     * Go: authR.HandleFunc("/refreshToken", h.refreshAppToken).Methods(http.MethodPost)
+     * Обновление app токенов по app refresh token
      */
     @PostMapping("/auth/refreshToken")
     public ResponseEntity<TokenResponse> refreshAppToken(
@@ -111,8 +89,7 @@ public class AuthController {
 
     /**
      * POST /auth/refreshTokenByBaseToken
-     * Обновление app токенов через base refresh token
-     * Go: authR.HandleFunc("/refreshTokenByBaseToken", h.refreshAppTokenByBaseToken).Methods(http.MethodPost)
+     * Обновление app токенов по base refresh token
      */
     @PostMapping("/auth/refreshTokenByBaseToken")
     public ResponseEntity<TokenResponse> refreshAppTokenByBaseToken(
@@ -128,7 +105,6 @@ public class AuthController {
     /**
      * POST /auth/refreshBaseToken
      * Обновление base токенов
-     * Go: authR.HandleFunc("/refreshBaseToken", h.refreshBaseToken).Methods(http.MethodPost)
      */
     @PostMapping("/auth/refreshBaseToken")
     public ResponseEntity<TokenResponse> refreshBaseToken(
@@ -141,10 +117,11 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    // ========== ПРОВЕРКА АВТОРИЗАЦИИ (для микросервисов) ==========
+
     /**
      * POST /auth/isAuthorization
-     * Проверка app авторизации
-     * Go: authR.HandleFunc("/isAuthorization", h.isAppAuthorization).Methods(http.MethodPost)
+     * Проверка app авторизации (для других микросервисов)
      */
     @PostMapping("/auth/isAuthorization")
     public ResponseEntity<AuthorizationResponse> isAppAuthorization(
@@ -160,8 +137,7 @@ public class AuthController {
 
     /**
      * POST /auth/isBaseAuthorization
-     * Проверка base авторизации
-     * Go: authR.HandleFunc("/isBaseAuthorization", h.isBaseAuthorization).Methods(http.MethodPost)
+     * Проверка base авторизации (для других микросервисов)
      */
     @PostMapping("/auth/isBaseAuthorization")
     public ResponseEntity<AuthorizationResponse> isBaseAuthorization(
@@ -175,22 +151,54 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    // ========== ЗАЩИЩЕННЫЕ ENDPOINTS (требуют токен) ==========
+
+    /**
+     * POST /auth/editUser
+     * Редактирование пользователя
+     *
+     * ВАЖНО: userId извлекается из JWT токена через @CurrentUser
+     */
+    @PostMapping("/auth/editUser")
+    public ResponseEntity<UserResponse> editUser(
+            @CurrentUser Integer userId,
+            @RequestBody UpdateUserRequest request) {
+
+        log.info("Edit user request from userId: {}", userId);
+
+        // Проверка что пользователь редактирует себя
+        if (request.getId() != null && !request.getId().equals(userId)) {
+            log.warn("User {} attempted to edit user {}", userId, request.getId());
+            throw new SecurityException("Cannot edit other users");
+        }
+
+        UserResponse response = authService.editUser(
+                userId,
+                request.getPassword(),
+                request.getNewPassword(),
+                request.getEmail(),
+                request.getPhone(),
+                request.getUserName(),
+                request.getLogin()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
     /**
      * POST /auth/checkProjectId
      * Проверка принадлежности проекта пользователю
-     * Go: authR.HandleFunc("/checkProjectId", h.checkProjectId).Methods(http.MethodPost)
      */
     @PostMapping("/auth/checkProjectId")
     public ResponseEntity<ProjectAccessResponse> checkProjectId(
+            @CurrentUser Integer userId,
             @RequestBody CheckProjectRequest request) {
 
         log.debug("Checking project access: userId={}, projectId={}",
-                request.getUserId(), request.getProjectId());
+                userId, request.getProjectId());
 
-        boolean hasAccess = authService.checkProjectId(
-                request.getUserId(),
-                request.getProjectId()
-        );
+        // Используем userId из токена, игнорируем из request
+        boolean hasAccess = authService.checkProjectId(userId, request.getProjectId());
 
         return ResponseEntity.ok(
                 ProjectAccessResponse.builder()
@@ -202,11 +210,9 @@ public class AuthController {
     /**
      * POST /auth/checkRoleAdmin
      * Проверка роли администратора
-     * Go: authR.HandleFunc("/checkRoleAdmin", h.checkRoleAdmin).Methods(http.MethodPost)
      */
     @PostMapping("/auth/checkRoleAdmin")
-    public ResponseEntity<StatusResponse> checkRoleAdmin(
-            @RequestHeader("userId") Integer userId) {
+    public ResponseEntity<StatusResponse> checkRoleAdmin(@CurrentUser Integer userId) {
 
         log.debug("Checking admin role for userId: {}", userId);
 
@@ -220,10 +226,11 @@ public class AuthController {
         );
     }
 
+    // ========== API v1 ENDPOINTS ==========
+
     /**
      * GET /api/v1/auth/checkFieldForUniqueness
-     * Проверка уникальности поля (login, email, phone)
-     * Go: apiv1RAuthR.HandleFunc("/checkFieldForUniqueness", h.checkFieldForUniqueness).Methods(http.MethodGet)
+     * Проверка уникальности поля (публичный endpoint для формы регистрации)
      */
     @GetMapping("/api/v1/auth/checkFieldForUniqueness")
     public ResponseEntity<UniquenessResponse> checkFieldForUniqueness(
@@ -239,12 +246,11 @@ public class AuthController {
 
     /**
      * GET /api/v1/user
-     * Получение пользователя
-     * Go: userR.HandleFunc("", h.getUser).Methods(http.MethodGet)
-     * ВАЖНО: userId передается через header
+     * Получение данных текущего пользователя
      */
     @GetMapping("/api/v1/user")
-    public ResponseEntity<UserResponse> getUser(@RequestHeader("userId") Integer userId) {
+    public ResponseEntity<UserResponse> getUser(@CurrentUser Integer userId) {
+
         log.debug("Get user request for userId: {}", userId);
 
         UserResponse response = authService.getUser(userId);
@@ -254,12 +260,11 @@ public class AuthController {
 
     /**
      * GET /api/v1/base/user
-     * Получение базовых данных пользователя
-     * Go: apiv1R.HandleFunc("/base/user", h.getUserByBaseToken).Methods(http.MethodGet)
-     * ВАЖНО: userId передается через header
+     * Получение базовых данных пользователя (через Base токен)
      */
     @GetMapping("/api/v1/base/user")
-    public ResponseEntity<BaseUserResponse> getBaseUser(@RequestHeader("userId") Integer userId) {
+    public ResponseEntity<BaseUserResponse> getBaseUser(@CurrentUser Integer userId) {
+
         log.debug("Get base user request for userId: {}", userId);
 
         BaseUserResponse response = authService.getBaseUser(userId);
@@ -270,11 +275,10 @@ public class AuthController {
     /**
      * GET /api/v1/user/company
      * Получение компаний пользователя
-     * Go: userR.HandleFunc("/company", h.getCompaniesOfUser).Methods(http.MethodGet)
-     * ВАЖНО: userId передается через header
      */
     @GetMapping("/api/v1/user/company")
-    public ResponseEntity<CompaniesResponse> getCompanies(@RequestHeader("userId") Integer userId) {
+    public ResponseEntity<CompaniesResponse> getCompanies(@CurrentUser Integer userId) {
+
         log.debug("Get companies request for userId: {}", userId);
 
         CompaniesResponse response = authService.getCompanies(userId);

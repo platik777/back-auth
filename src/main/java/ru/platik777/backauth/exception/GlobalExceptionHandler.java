@@ -115,28 +115,6 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Обработка исключений образовательных учреждений
-     * Go: возвращает 400 Bad Request
-     */
-    @ExceptionHandler(EducationalInstitutionService.EducationalInstitutionException.class)
-    public ResponseEntity<ErrorResponse> handleEducationalInstitutionException(
-            EducationalInstitutionService.EducationalInstitutionException ex,
-            WebRequest request) {
-
-        log.warn("Educational institution error: {}", ex.getMessage());
-
-        ErrorResponse error = ErrorResponse.builder()
-                .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Bad Request")
-                .message(ex.getMessage())
-                .path(extractPath(request))
-                .build();
-
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
-    }
-
-    /**
      * Обработка JWT исключений
      * Go: возвращает 401 Unauthorized
      */

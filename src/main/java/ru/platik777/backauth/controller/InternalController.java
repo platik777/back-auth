@@ -5,7 +5,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.platik777.backauth.dto.request.SupportMessageRequest;
-import ru.platik777.backauth.dto.response.EducationalInstitutionSearchResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
 import ru.platik777.backauth.service.InternalService;
 

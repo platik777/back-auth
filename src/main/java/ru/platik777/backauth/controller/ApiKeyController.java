@@ -10,20 +10,15 @@ import ru.platik777.backauth.dto.request.ApiKeyCreateRequest;
 import ru.platik777.backauth.dto.response.ApiKeyAuthResponse;
 import ru.platik777.backauth.dto.response.ApiKeyResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
+import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.ApiKeyService;
 
 import java.util.List;
 
 /**
  * Контроллер управления API ключами
- * Соответствует auth.go API key endpoints
  *
- * Базовый путь: /api/v1/key
- * Go:
- * - apiv1R.HandleFunc("/key", h.apiKeyCreate).Methods(http.MethodPost)
- * - apiv1R.HandleFunc("/key/{token}", h.apiKeyDelete).Methods(http.MethodDelete)
- * - apiv1R.HandleFunc("/key", h.apiKeyGet).Methods(http.MethodGet)
- * - apiv1R.HandleFunc("/key/check", h.checkApiKeyAuthorization).Methods(http.MethodPost)
+ * ВАЖНО: Использует @CurrentUser для безопасного извлечения userId из токена
  */
 @Slf4j
 @RestController
@@ -36,12 +31,12 @@ public class ApiKeyController {
     /**
      * POST /api/v1/key
      * Создание нового API ключа
-     * Go: apiv1R.HandleFunc("/key", h.apiKeyCreate).Methods(http.MethodPost)
-     * ВАЖНО: userId передается через header
+     *
+     * userId автоматически извлекается из JWT токена
      */
     @PostMapping
     public ResponseEntity<ApiKeyResponse> createApiKey(
-            @RequestHeader("userId") Integer userId,
+            @CurrentUser Integer userId,
             @RequestBody ApiKeyCreateRequest request) {
 
         log.info("Creating API key for userId: {}, name: {}", userId, request.getName());
@@ -58,12 +53,10 @@ public class ApiKeyController {
     /**
      * DELETE /api/v1/key/{token}
      * Мягкое удаление API ключа
-     * Go: apiv1R.HandleFunc("/key/{token}", h.apiKeyDelete).Methods(http.MethodDelete)
-     * ВАЖНО: userId передается через header, token через path
      */
     @DeleteMapping("/{token}")
     public ResponseEntity<StatusResponse> deleteApiKey(
-            @RequestHeader("userId") Integer userId,
+            @CurrentUser Integer userId,
             @PathVariable String token) {
 
         log.info("Deleting API key for userId: {}", userId);
@@ -76,12 +69,9 @@ public class ApiKeyController {
     /**
      * GET /api/v1/key
      * Получение всех активных API ключей пользователя
-     * Go: apiv1R.HandleFunc("/key", h.apiKeyGet).Methods(http.MethodGet)
-     * ВАЖНО: userId передается через header
      */
     @GetMapping
-    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(
-            @RequestHeader("userId") Integer userId) {
+    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(@CurrentUser Integer userId) {
 
         log.debug("Getting API keys for userId: {}", userId);
 
@@ -93,7 +83,8 @@ public class ApiKeyController {
     /**
      * POST /api/v1/key/check
      * Проверка авторизации по API ключу
-     * Go: apiv1R.HandleFunc("/key/check", h.checkApiKeyAuthorization).Methods(http.MethodPost)
+     *
+     * ПУБЛИЧНЫЙ endpoint - не требует JWT токена
      */
     @PostMapping("/check")
     public ResponseEntity<ApiKeyAuthResponse> checkApiKeyAuthorization(
