@@ -1,11 +1,14 @@
 package ru.platik777.backauth.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -15,17 +18,18 @@ import ru.platik777.backauth.service.JwtService;
 import ru.platik777.backauth.service.KeyService;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * JWT фильтр для проверки токенов
+ * JWT фильтр с правильной обработкой ошибок
  *
- * Логика работы:
- * 1. Извлекает токен из Authorization header
- * 2. Определяет тип токена по endpoint
- * 3. Валидирует токен соответствующим ключом
- * 4. Устанавливает Authentication в SecurityContext
- * 5. Добавляет userId в request attributes для контроллеров
+ * ИСПРАВЛЕНИЯ:
+ * 1. Явная отправка 401 при невалидном токене
+ * 2. Детальные сообщения об ошибках
+ * 3. Пропуск ТОЛЬКО для публичных endpoint'ов
  */
 @Slf4j
 @Component
@@ -34,95 +38,125 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final KeyService keyService;
+    private final ObjectMapper objectMapper;
+
+    // Публичные endpoint'ы, не требующие токена
+    private static final String[] PUBLIC_ENDPOINTS = {
+            "/auth/signIn",
+            "/auth/signUp",
+            "/api/v1/resetPassword",
+            "/api/v1/auth/checkFieldForUniqueness",
+            "/api/v1/educationalInstitutions",
+            "/api/v1/internal",
+            "/monitor",
+            "/actuator",
+            "/metrics",
+            "/api/v1/key/check"  // Проверка API ключа
+    };
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        try {
-            // 1. Извлекаем токен из header
-            String authHeader = request.getHeader("Authorization");
+        String requestPath = request.getRequestURI();
 
-            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                // Нет токена - пропускаем дальше (публичные endpoints)
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            String token = authHeader.substring(7).trim();
-
-            if (token.isEmpty()) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            // 2. Определяем тип токена по пути запроса
-            String requestPath = request.getRequestURI();
-            TokenType tokenType = determineTokenType(requestPath);
-
-            // 3. Валидируем токен соответствующим ключом
-            Integer userId = validateToken(token, tokenType);
-
-            if (userId != null) {
-                // 4. Создаем Authentication и устанавливаем в контекст
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(
-                                userId,
-                                null,
-                                Collections.emptyList()
-                        );
-
-                authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request)
-                );
-
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-
-                // 5. Добавляем userId в request attributes для удобного доступа в контроллерах
-                request.setAttribute("userId", userId);
-
-                log.debug("JWT authenticated: userId={}, path={}, tokenType={}",
-                        userId, requestPath, tokenType);
-            }
-
-        } catch (Exception e) {
-            // Логируем ошибку, но не прерываем цепочку
-            // Spring Security обработает отсутствие Authentication
-            log.warn("JWT validation failed: {}", e.getMessage());
+        // 1. Пропускаем публичные endpoint'ы БЕЗ проверки токена
+        if (isPublicEndpoint(requestPath)) {
+            filterChain.doFilter(request, response);
+            return;
         }
 
-        // 6. Продолжаем цепочку фильтров
-        filterChain.doFilter(request, response);
+        // 2. Извлекаем токен из header
+        String authHeader = request.getHeader("Authorization");
+
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            // Нет токена для защищенного endpoint'а - 401
+            sendUnauthorizedError(response, "Missing or invalid Authorization header");
+            return;
+        }
+
+        String token = authHeader.substring(7).trim();
+
+        if (token.isEmpty()) {
+            sendUnauthorizedError(response, "Token is empty");
+            return;
+        }
+
+        try {
+            // 3. Определяем тип токена по пути
+            TokenType tokenType = determineTokenType(requestPath);
+
+            // 4. Валидируем токен соответствующим ключом
+            Integer userId = validateToken(token, tokenType);
+
+            if (userId == null) {
+                sendUnauthorizedError(response, "Invalid or expired token");
+                return;
+            }
+
+            // 5. Устанавливаем Authentication в контекст
+            UsernamePasswordAuthenticationToken authentication =
+                    new UsernamePasswordAuthenticationToken(
+                            userId,
+                            null,
+                            Collections.emptyList()
+                    );
+
+            authentication.setDetails(
+                    new WebAuthenticationDetailsSource().buildDetails(request)
+            );
+
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            request.setAttribute("userId", userId);
+
+            log.debug("JWT authenticated: userId={}, path={}, tokenType={}",
+                    userId, requestPath, tokenType);
+
+            // 6. Продолжаем цепочку
+            filterChain.doFilter(request, response);
+
+        } catch (JwtService.JwtException e) {
+            // Специфичные ошибки JWT
+            log.warn("JWT validation failed: {}", e.getMessage());
+            sendUnauthorizedError(response, e.getMessage());
+        } catch (Exception e) {
+            // Неожиданные ошибки
+            log.error("Unexpected error in JWT filter", e);
+            sendUnauthorizedError(response, "Token validation failed");
+        }
+    }
+
+    /**
+     * Проверка, является ли endpoint публичным
+     */
+    private boolean isPublicEndpoint(String path) {
+        for (String publicPath : PUBLIC_ENDPOINTS) {
+            if (path.startsWith(publicPath)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
      * Определение типа токена по пути запроса
-     *
-     * Base токены используются для:
-     * - /api/v1/base/** - базовая информация
-     * - /auth/refreshTokenByBaseToken - обновление через base token
-     *
-     * App токены используются для всего остального
      */
     private TokenType determineTokenType(String path) {
-        if (path.startsWith("/api/v1/base/") ||
-                path.equals("/auth/refreshTokenByBaseToken") ||
-                path.equals("/auth/isBaseAuthorization")) {
+        // Base токены
+        if (path.startsWith("/api/v1/base/")) {
             return TokenType.BASE_ACCESS;
         }
+        return switch (path) {
+            case "/auth/isBaseAuthorization" -> TokenType.BASE_ACCESS;
+            // Refresh токены
+            case "/auth/refreshToken" -> TokenType.APP_REFRESH;
+            case "/auth/refreshTokenByBaseToken", "/auth/refreshBaseToken" -> TokenType.BASE_REFRESH;
+            default ->
+                // По умолчанию - App Access
+                    TokenType.APP_ACCESS;
+        };
 
-        // Refresh токены определяются по endpoint'ам обновления
-        if (path.equals("/auth/refreshToken")) {
-            return TokenType.APP_REFRESH;
-        }
-
-        if (path.equals("/auth/refreshBaseToken")) {
-            return TokenType.BASE_REFRESH;
-        }
-
-        // По умолчанию - App Access токен
-        return TokenType.APP_ACCESS;
     }
 
     /**
@@ -142,15 +176,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         } catch (JwtService.JwtException e) {
             log.debug("Token validation failed: tokenType={}, error={}",
                     tokenType, e.getMessage());
-            return null;
+            throw e; // Пробрасываем дальше для обработки
         }
+    }
+
+    /**
+     * Отправка 401 Unauthorized с JSON ошибкой
+     */
+    private void sendUnauthorizedError(HttpServletResponse response, String message)
+            throws IOException {
+
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+
+        Map<String, Object> errorDetails = new HashMap<>();
+        errorDetails.put("timestamp", LocalDateTime.now().toString());
+        errorDetails.put("status", HttpStatus.UNAUTHORIZED.value());
+        errorDetails.put("error", "Unauthorized");
+        errorDetails.put("message", message);
+
+        objectMapper.writeValue(response.getWriter(), errorDetails);
     }
 
     /**
      * Типы токенов в системе
      */
     private enum TokenType {
-        APP_ACCESS,     // Для основных операций с пользователем
+        APP_ACCESS,     // Для основных операций
         APP_REFRESH,    // Для обновления App токенов
         BASE_ACCESS,    // Для базовой информации
         BASE_REFRESH    // Для обновления Base токенов

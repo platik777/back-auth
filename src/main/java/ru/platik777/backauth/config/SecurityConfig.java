@@ -19,13 +19,12 @@ import ru.platik777.backauth.security.JwtAuthenticationFilter;
 import java.util.List;
 
 /**
- * Конфигурация Spring Security с JWT аутентификацией
+ * Конфигурация Spring Security с правильной настройкой endpoint'ов
  *
- * Архитектура:
- * 1. Публичные endpoints (signIn, signUp, reset password) - без токена
- * 2. App-защищенные endpoints (/api/v1/user, /api/v1/key) - App Access Token
- * 3. Base-защищенные endpoints (/api/v1/base) - Base Access Token
- * 4. Internal endpoints (/api/v1/internal) - без токена (доступны внутри сети)
+ * ИСПРАВЛЕНИЯ:
+ * 1. Четкое разделение публичных и защищенных endpoint'ов
+ * 2. Согласованность с JwtAuthenticationFilter
+ * 3. Правильная настройка refresh endpoint'ов
  */
 @Configuration
 @EnableWebSecurity
@@ -42,18 +41,20 @@ public class SecurityConfig {
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // Добавляем JWT фильтр ПЕРЕД стандартной аутентификацией
+                // JWT фильтр перед стандартной аутентификацией
                 .addFilterBefore(jwtAuthenticationFilter,
                         UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(authz -> authz
-                        // ===== ПУБЛИЧНЫЕ ENDPOINTS (без токена) =====
+                        // ========== ПУБЛИЧНЫЕ ENDPOINTS (БЕЗ токена) ==========
 
                         // Регистрация и вход
-                        .requestMatchers("/auth/signUp").permitAll()
-                        .requestMatchers("/auth/signIn").permitAll()
+                        .requestMatchers(
+                                "/auth/signUp",
+                                "/auth/signIn"
+                        ).permitAll()
 
-                        // Восстановление пароля
+                        // Восстановление пароля (все endpoint'ы)
                         .requestMatchers("/api/v1/resetPassword/**").permitAll()
 
                         // Проверка уникальности полей (для формы регистрации)
@@ -62,42 +63,53 @@ public class SecurityConfig {
                         // Образовательные учреждения (публичный справочник)
                         .requestMatchers("/api/v1/educationalInstitutions/**").permitAll()
 
-                        // Internal endpoints (доступны без токена, но защищены на уровне сети)
+                        // Internal endpoints (защищены на уровне сети)
                         .requestMatchers("/api/v1/internal/**").permitAll()
 
-                        // Мониторинг и health checks
-                        .requestMatchers("/monitor/**").permitAll()
-                        .requestMatchers("/actuator/**").permitAll()
-                        .requestMatchers("/metrics").permitAll()
+                        // Мониторинг
+                        .requestMatchers(
+                                "/monitor/**",
+                                "/actuator/**",
+                                "/metrics"
+                        ).permitAll()
 
-                        // ===== ЗАЩИЩЕННЫЕ APP ENDPOINTS (App Access Token) =====
+                        // Проверка API ключа (публичный endpoint)
+                        .requestMatchers("/api/v1/key/check").permitAll()
 
-                        // Обновление токенов (требует Refresh Token, но проверяется в контроллере)
-                        .requestMatchers("/auth/refreshToken").permitAll()
-                        .requestMatchers("/auth/refreshTokenByBaseToken").permitAll()
-                        .requestMatchers("/auth/refreshBaseToken").permitAll()
+                        // ========== ЗАЩИЩЕННЫЕ ENDPOINTS (С токеном) ==========
 
-                        // Проверка авторизации (внутренний endpoint для других сервисов)
-                        .requestMatchers("/auth/isAuthorization").permitAll()
-                        .requestMatchers("/auth/isBaseAuthorization").permitAll()
+                        // Обновление токенов - ТРЕБУЮТ соответствующий Refresh Token
+                        // Проверка типа токена происходит в JwtAuthenticationFilter
+                        .requestMatchers(
+                                "/auth/refreshToken",           // App Refresh Token
+                                "/auth/refreshTokenByBaseToken", // Base Refresh Token
+                                "/auth/refreshBaseToken"         // Base Refresh Token
+                        ).authenticated()
 
-                        // Пользовательские операции
-                        .requestMatchers("/auth/editUser").authenticated()
-                        .requestMatchers("/auth/checkProjectId").authenticated()
-                        .requestMatchers("/auth/checkRoleAdmin").authenticated()
+                        // Проверка авторизации (для других микросервисов)
+                        // Требуют соответствующий Access Token
+                        .requestMatchers(
+                                "/auth/isAuthorization",     // App Access Token
+                                "/auth/isBaseAuthorization"  // Base Access Token
+                        ).authenticated()
 
-                        // API v1 - пользователь
+                        // Пользовательские операции - App Access Token
+                        .requestMatchers(
+                                "/auth/editUser",
+                                "/auth/checkProjectId",
+                                "/auth/checkRoleAdmin"
+                        ).authenticated()
+
+                        // API v1/user - App Access Token
                         .requestMatchers("/api/v1/user/**").authenticated()
 
-                        // API v1 - API ключи
+                        // API v1/key - App Access Token
                         .requestMatchers("/api/v1/key/**").authenticated()
 
-                        // ===== ЗАЩИЩЕННЫЕ BASE ENDPOINTS (Base Access Token) =====
-
-                        // Базовая информация о пользователе
+                        // API v1/base - Base Access Token
                         .requestMatchers("/api/v1/base/**").authenticated()
 
-                        // ===== ВСЕ ОСТАЛЬНОЕ =====
+                        // Все остальное требует аутентификации
                         .anyRequest().authenticated()
                 );
 
