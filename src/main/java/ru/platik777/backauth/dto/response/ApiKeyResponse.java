@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.ApiKey;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 /**
  * DTO API ключа для ответа
@@ -16,7 +17,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiKeyResponse {
-    private Integer id;
+    private UUID id;
     private String apiKey;
     private String name;
     private LocalDateTime expireAt;
@@ -28,8 +29,8 @@ public class ApiKeyResponse {
                 .id(apiKey.getId())
                 .apiKey(apiKey.getApiKey())
                 .name(apiKey.getName())
-                .expireAt(apiKey.getExpireAt())
-                .createdAt(apiKey.getCreatedAt())
+                .expireAt(LocalDateTime.from(apiKey.getExpireAt()))
+                .createdAt(LocalDateTime.from(apiKey.getCreatedAt()))
                 .isDeleted(apiKey.getIsDeleted())
                 .build();
     }

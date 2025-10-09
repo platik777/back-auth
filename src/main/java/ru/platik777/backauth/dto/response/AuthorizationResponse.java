@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * Ответ на проверку авторизации
  */
@@ -14,5 +16,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AuthorizationResponse {
     private String status;
-    private Integer userId;
+    private UUID userId;
 }

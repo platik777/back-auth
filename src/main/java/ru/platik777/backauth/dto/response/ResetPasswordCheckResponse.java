@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 /**
  * Ответ на проверку токена сброса пароля
  */
@@ -13,5 +15,5 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResetPasswordCheckResponse {
-    private Integer userId;
+    private UUID userId;
 }

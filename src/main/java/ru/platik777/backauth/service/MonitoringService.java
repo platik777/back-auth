@@ -6,6 +6,7 @@ import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Service;
 import ru.platik777.backauth.entity.User;
+import ru.platik777.backauth.entity.types.AccountType;
 import ru.platik777.backauth.repository.UserRepository;
 
 import java.lang.management.ManagementFactory;
@@ -108,7 +109,7 @@ public class MonitoringService implements HealthIndicator {
 
             // Статистика по типам аккаунтов
             Map<String, Long> accountTypeStats = new HashMap<>();
-            for (User.AccountType type : User.AccountType.values()) {
+            for (AccountType type : AccountType.values()) {
                 long count = userRepository.findByAccountType(type).size();
                 accountTypeStats.put(type.getValue(), count);
             }

@@ -1,40 +1,41 @@
 package ru.platik777.backauth.entity;
 
 import jakarta.persistence.*;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
+import java.util.UUID;
 
 @Entity
-@Table(name = "api_keys", schema = "public")
-@Data
-@EqualsAndHashCode(callSuper = false)
-public class ApiKey {
+@Table(name = "api_key")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@SuperBuilder
+public class ApiKey extends BaseEntity {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "id")
-    private Integer id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-    @Column(name = "key", nullable = false, unique = true, columnDefinition = "TEXT")
+    @Column(name = "api_key", nullable = false, unique = true, length = 255)
     private String apiKey;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "expire_at", nullable = false)
-    private LocalDateTime expireAt;
+    @Column(name = "created_at")
+    private Instant createdAt;
 
-    @CreationTimestamp
-    @Column(name = "created_at", nullable = false)
-    private LocalDateTime createdAt;
+    @Column(name = "expire_at")
+    private Instant expireAt;
 
-    @Column(name = "name", nullable = false)
+    @Column(length = 255)
     private String name;
 
-    @Column(name = "is_deleted", nullable = false)
+    @Column(name = "is_deleted")
     private Boolean isDeleted = false;
 }

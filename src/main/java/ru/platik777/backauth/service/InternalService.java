@@ -14,7 +14,7 @@ import ru.platik777.backauth.dto.response.StatusResponse;
 @RequiredArgsConstructor
 public class InternalService {
 
-    private final EmailService emailService;
+    //private final EmailService emailService;
     private final ValidationService validationService;
 
     /**
@@ -30,7 +30,7 @@ public class InternalService {
         validationService.validateMessage(message);
 
         // Отправка письма
-        emailService.sendMessageToSupport(userName, email, message, targetSubject);
+        //emailService.sendMessageToSupport(userName, email, message, targetSubject);
 
         return StatusResponse.builder()
                 .status(true)

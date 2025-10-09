@@ -1,5 +1,6 @@
 package ru.platik777.backauth.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -14,6 +15,7 @@ import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.ApiKeyService;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Контроллер управления API ключами
@@ -24,6 +26,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/key")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class ApiKeyController {
 
     private final ApiKeyService apiKeyService;
@@ -35,8 +38,9 @@ public class ApiKeyController {
      * userId автоматически извлекается из JWT токена
      */
     @PostMapping
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiKeyResponse> createApiKey(
-            @CurrentUser Integer userId,
+            @CurrentUser UUID userId,
             @RequestBody ApiKeyCreateRequest request) {
 
         log.info("Creating API key for userId: {}, name: {}", userId, request.getName());
@@ -55,8 +59,9 @@ public class ApiKeyController {
      * Мягкое удаление API ключа
      */
     @DeleteMapping("/{token}")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<StatusResponse> deleteApiKey(
-            @CurrentUser Integer userId,
+            @CurrentUser UUID userId,
             @PathVariable String token) {
 
         log.info("Deleting API key for userId: {}", userId);
@@ -71,7 +76,8 @@ public class ApiKeyController {
      * Получение всех активных API ключей пользователя
      */
     @GetMapping
-    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(@CurrentUser Integer userId) {
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(@CurrentUser UUID userId) {
 
         log.debug("Getting API keys for userId: {}", userId);
 
@@ -87,6 +93,7 @@ public class ApiKeyController {
      * ПУБЛИЧНЫЙ endpoint - не требует JWT токена
      */
     @PostMapping("/check")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiKeyAuthResponse> checkApiKeyAuthorization(
             @RequestBody ApiKeyCheckRequest request) {
 

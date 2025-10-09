@@ -24,8 +24,8 @@ import java.nio.charset.StandardCharsets;
  * - smtp.GetBodyMessageForSendMessageToSupport
  */
 @Slf4j
-@Service
-@RequiredArgsConstructor
+// @Service
+//@RequiredArgsConstructor
 public class EmailService {
 
     private final JavaMailSender mailSender;
@@ -46,6 +46,11 @@ public class EmailService {
     @Value("${app.smtp.send-to-logs:false}")
     private boolean sendToLogs;
 
+    public EmailService(JavaMailSender mailSender, ResourceLoader resourceLoader) {
+        this.mailSender = mailSender;
+        this.resourceLoader = resourceLoader;
+    }
+
     /**
      * Отправка письма для восстановления пароля
      * Go: func (a *AuthService) ResetPasswordForgot(...)
@@ -53,12 +58,11 @@ public class EmailService {
      * @param targetEmail Email получателя
      * @param subject Тема письма
      * @param resetPasswordUrl URL для сброса пароля
-     * @param userName Имя пользователя
      * @param login Логин пользователя
      * @param locale Язык письма (ru/en)
      */
     public void sendResetPasswordEmail(String targetEmail, String subject,
-                                       String resetPasswordUrl, String userName,
+                                       String resetPasswordUrl,
                                        String login, String locale) {
         log.debug("Preparing reset password email for: {}", targetEmail);
 
@@ -70,7 +74,6 @@ public class EmailService {
         try {
             String htmlBody = getResetPasswordHtmlBody(
                     resetPasswordUrl,
-                    userName != null ? userName : "",
                     login != null ? login : "",
                     locale != null ? locale : "ru"
             );
@@ -169,7 +172,7 @@ public class EmailService {
      *
      * Загружает шаблон из classpath и заменяет плейсхолдеры
      */
-    private String getResetPasswordHtmlBody(String resetPasswordUrl, String userName,
+    private String getResetPasswordHtmlBody(String resetPasswordUrl,
                                             String login, String locale) {
         try {
             // Определяем путь к шаблону на основе локали
@@ -193,7 +196,6 @@ public class EmailService {
 
             // Замена плейсхолдеров (как в Go шаблонах)
             // Go: {{.UserName}}, {{.Login}}, {{.ResetPasswordUrl}}
-            template = template.replace("{{.UserName}}", escapeHtml(userName));
             template = template.replace("{{.Login}}", escapeHtml(login));
             template = template.replace("{{.ResetPasswordUrl}}", resetPasswordUrl);
 

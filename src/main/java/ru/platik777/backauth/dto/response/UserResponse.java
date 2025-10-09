@@ -5,9 +5,11 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.User;
+import ru.platik777.backauth.entity.embedded.UserSettings;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO пользователя для ответа
@@ -17,7 +19,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    private Integer id;
+    private UUID id;
     private String login;
     private String email;
     private String userName;
@@ -25,7 +27,7 @@ public class UserResponse {
     private Integer billingId;
     private String accountType;
     private LocalDateTime createdAt;
-    private User.UserSettings settings;
+    private UserSettings settings;
     private List<String> roles;
     private List<String> permissions;
 
@@ -34,14 +36,10 @@ public class UserResponse {
                 .id(user.getId())
                 .login(user.getLogin())
                 .email(user.getEmail())
-                .userName(user.getUserName())
                 .phone(user.getPhone())
-                .billingId(user.getBillingId())
                 .accountType(user.getAccountType() != null ? user.getAccountType().getValue() : null)
-                .createdAt(user.getCreatedAt())
+                .createdAt(user.getCreatedAt() != null ? LocalDateTime.from(user.getCreatedAt()) : null)
                 .settings(user.getSettings())
-                .roles(user.getRoles())
-                .permissions(user.getPermissions())
                 .build();
     }
 }

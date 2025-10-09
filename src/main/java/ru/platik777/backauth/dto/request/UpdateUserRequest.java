@@ -2,9 +2,11 @@ package ru.platik777.backauth.dto.request;
 
 import lombok.Data;
 
+import java.util.UUID;
+
 @Data
 public class UpdateUserRequest {
-    private Integer id;
+    private UUID id;
     private String login;
     private String email;
     private String userName;

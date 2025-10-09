@@ -3,6 +3,7 @@ package ru.platik777.backauth.mapper;
 import org.springframework.stereotype.Component;
 import ru.platik777.backauth.dto.request.SignUpRequest;
 import ru.platik777.backauth.entity.User;
+import ru.platik777.backauth.entity.types.AccountType;
 
 /**
  * Маппер для преобразования DTO в User Entity и обратно
@@ -20,13 +21,13 @@ public class UserMapper {
 
         User user = new User();
         user.setLogin(dto.getLogin());
+        user.setName(dto.getName());
         user.setPasswordHash(dto.getPassword());
         user.setEmail(dto.getEmail());
-        user.setUserName(dto.getUserName());
         user.setPhone(dto.getPhone());
 
         if (dto.getAccountType() != null) {
-            user.setAccountType(User.AccountType.fromValue(dto.getAccountType()));
+            user.setAccountType(AccountType.valueOf(dto.getAccountType()));
         }
 
         return user;

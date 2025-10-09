@@ -4,13 +4,15 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import ru.platik777.backauth.entity.UserData;
 import ru.platik777.backauth.dto.response.*;
 import ru.platik777.backauth.entity.*;
+import ru.platik777.backauth.entity.embedded.UserSettings;
 import ru.platik777.backauth.repository.*;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -23,10 +25,7 @@ import java.util.stream.Collectors;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final UserDataRepository userDataRepository;
-    private final UserSchemaRepository userSchemaRepository;
     private final CompanyRepository companyRepository;
-    private final ProjectAccessRepository projectAccessRepository;
     private final ValidationService validationService;
     private final PasswordService passwordService;
     private final JwtService jwtService;
@@ -39,7 +38,7 @@ public class AuthService {
      *                                  u *models.User, s *models.Student, c *models.Company, locale string)
      */
     @Transactional
-    public SignUpResponse signUp(User user, Company company, String locale) {
+    public SignUpResponse signUp(User user, Tenant tenant, String locale) {
         log.debug("SignUp started for login: {}", user.getLogin());
 
         try {
@@ -47,46 +46,42 @@ public class AuthService {
             setDefaultUserData(user);
 
             // 2. ВАЖНО: Сначала хешируем пароль
-            String plainPassword = user.getPasswordHash(); // Временно хранится здесь
-            String hashedPassword = passwordService.generatePasswordHash(plainPassword);
+            String hashedPassword = passwordService.generatePasswordHash(user.getPasswordHash());
             user.setPasswordHash(hashedPassword);
 
             // 3. Теперь валидируем (пароль уже захеширован)
-            validationService.validateSignUp(user, company);
+            validationService.validateSignUp(user, tenant);
 
             // 4. Получение ролей и модулей
-            RoleService.RolesResponse rolesData = roleService.getAvailableRoles();
-            List<Map<String, Object>> roles = rolesData.roles();
-            List<Object> modules = rolesData.useModules();
+            // RoleService.RolesResponse rolesData = roleService.getAvailableRoles();
+            // List<Map<String, Object>> roles = rolesData.roles();
+            // List<Object> modules = rolesData.useModules();
+
+            log.debug("User: {}", user);
 
             // 5. Создание пользователя и связанных сущностей
-            Integer userId = createUser(user, company, roles);
+            User savedUser = userRepository.save(user);
+            UUID userId = savedUser.getId();
 
             // 6. Асинхронная установка тарифа
-            if (modules != null && !modules.isEmpty()) {
-                roleService.setTariffAsync(userId, modules);
-            }
-
-            // 7. Получение созданного пользователя
-            User createdUser = userDataRepository.getUserWithData(userId)
-                    .orElseThrow(() -> new AuthException("Failed to retrieve created user"));
-
-            // 8. Очистка чувствительных данных
-            createdUser.setPasswordHash(null);
+            // if (modules != null && !modules.isEmpty()) {
+            //    roleService.setTariffAsync(userId, modules);
+            // }
 
             // 9. Формирование ответа
             SignUpResponse.SignUpResponseBuilder responseBuilder = SignUpResponse.builder()
-                    .user(UserResponse.fromUser(createdUser));
+                    .user(UserResponse.fromUser(savedUser));
 
             // Добавление данных студента или компании
+            // TODO: Определиться с компаниями и их видами
             switch (user.getAccountType()) {
                 case ENTREPRENEUR:
                 case COMPANY_RESIDENT:
                 case COMPANY_NON_RESIDENT:
                 case EDUCATIONAL_UNIT:
-                    if (company != null) {
-                        company.setCreatedAt(createdUser.getCreatedAt());
-                        responseBuilder.company(CompanyResponse.fromCompany(company));
+                    if (tenant != null) {
+                        tenant.setCreatedAt(savedUser.getCreatedAt());
+                        responseBuilder.company(CompanyResponse.fromCompany(tenant));
                     }
                     break;
                 default:
@@ -127,9 +122,6 @@ public class AuthService {
 
             // 2. Создание токенов
             JwtService.TokensResponse tokens = jwtService.createAllTokens(user.getId());
-
-            // 3. Очистка паролей
-            user.setPasswordHash(null);
 
             log.info("User signed in successfully: userId={}, login={}", user.getId(), login);
 
@@ -177,15 +169,10 @@ public class AuthService {
      * Обновление app токенов через base refresh token
      * Go: func (a *AuthService) RefreshAppTokenByBaseToken(logger go_logger.Logger, rToken string)
      */
-    public TokenResponse refreshAppTokenByBaseToken(String refreshToken) {
+    public TokenResponse refreshAppTokenByBaseToken(UUID userId) {
         log.debug("RefreshAppTokenByBaseToken started");
 
         try {
-            Integer userId = jwtService.parseToken(
-                    refreshToken,
-                    keyService.getSigningBaseKeyRefresh()
-            );
-
             JwtService.TokensResponse tokens = jwtService.createAllTokens(userId);
 
             return TokenResponse.builder()
@@ -205,15 +192,10 @@ public class AuthService {
      * Обновление app токенов
      * Go: func (a *AuthService) RefreshAppToken(logger go_logger.Logger, rToken string)
      */
-    public TokenResponse refreshAppToken(String refreshToken) {
+    public TokenResponse refreshAppToken(UUID userId) {
         log.debug("RefreshAppToken started");
 
         try {
-            Integer userId = jwtService.parseToken(
-                    refreshToken,
-                    keyService.getSigningAppKeyRefresh()
-            );
-
             Map<String, String> appTokens = jwtService.createAppTokens(userId);
             Map<String, String> baseTokens = jwtService.createBaseTokens(userId);
 
@@ -234,15 +216,10 @@ public class AuthService {
      * Обновление base токенов
      * Go: func (a *AuthService) RefreshBaseToken(logger go_logger.Logger, rToken string)
      */
-    public TokenResponse refreshBaseToken(String refreshToken) {
+    public TokenResponse refreshBaseToken(UUID userId) {
         log.debug("RefreshBaseToken started");
 
         try {
-            Integer userId = jwtService.parseToken(
-                    refreshToken,
-                    keyService.getSigningBaseKeyRefresh()
-            );
-
             Map<String, String> tokens = jwtService.createBaseTokens(userId);
 
             return TokenResponse.builder()
@@ -267,7 +244,7 @@ public class AuthService {
         }
 
         try {
-            Integer userId = jwtService.parseToken(
+            UUID userId = jwtService.parseToken(
                     accessToken,
                     keyService.getSigningAppKeyAccess()
             );
@@ -294,7 +271,7 @@ public class AuthService {
         }
 
         try {
-            Integer userId = jwtService.parseToken(
+            UUID userId = jwtService.parseToken(
                     accessToken,
                     keyService.getSigningBaseKeyAccess()
             );
@@ -315,57 +292,10 @@ public class AuthService {
      * Go: func (a *AuthService) EditUser(logger go_logger.Logger, user *models.User)
      */
     @Transactional
-    public UserResponse editUser(Integer userId, String currentPassword, String newPassword,
+    public UserResponse editUser(UUID userId, String currentPassword, String newPassword,
                                  String email, String phone, String userName, String login) {
-        log.debug("EditUser started for userId: {}", userId);
-
-        try {
-            // 1. Получение текущих данных пользователя
-            User oldUser = userDataRepository.getUserWithData(userId)
-                    .orElseThrow(() -> new AuthException("User not found"));
-
-            UserData oldUserData = userDataRepository.getUserData(userId)
-                    .orElseThrow(() -> new AuthException("User data not found"));
-
-            // 2. Валидация и хеширование нового пароля (если передан)
-            String newPasswordHash = null;
-            if (currentPassword != null && newPassword != null) {
-                newPasswordHash = validationService.validateAndHashPasswordChange(
-                        oldUser.getPasswordHash(),
-                        currentPassword,
-                        newPassword
-                );
-            }
-
-            // 3. Подготовка новых данных для валидации
-            UserData newUserData = new UserData();
-            newUserData.setLogin(login);
-            newUserData.setEmail(email);
-            newUserData.setPhone(phone);
-            newUserData.setUserName(userName);
-
-            // 4. Валидация изменений
-            validationService.validateUserUpdate(newUserData, oldUserData);
-
-            // 5. Обновление данных
-            updateUserData(userId, login, newPasswordHash, email, phone, userName);
-
-            // 6. Получение обновленных данных
-            User updatedUser = userDataRepository.getUserWithData(userId)
-                    .orElseThrow(() -> new AuthException("Failed to retrieve updated user"));
-
-            updatedUser.setPasswordHash(null);
-
-            log.info("User updated successfully: userId={}", userId);
-            return UserResponse.fromUser(updatedUser);
-
-        } catch (ValidationService.ValidationException e) {
-            log.warn("Validation failed during user update: {}", e.getMessage());
-            throw new AuthException("Update validation failed: " + e.getMessage(), e);
-        } catch (Exception e) {
-            log.error("Error updating user: userId={}", userId, e);
-            throw new AuthException("User update failed", e);
-        }
+        // TODO: реализовать
+        return null;
     }
 
     /**
@@ -373,10 +303,10 @@ public class AuthService {
      * Go: func (a *AuthService) GetUser(logger go_logger.Logger, userId int)
      */
     @Transactional(readOnly = true)
-    public UserResponse getUser(Integer userId) {
+    public UserResponse getUser(UUID userId) {
         log.debug("GetUser started for userId: {}", userId);
 
-        User user = userDataRepository.getUserWithData(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("User not found: " + userId));
 
         user.setPasswordHash(null);
@@ -388,10 +318,10 @@ public class AuthService {
      * Go: func (a *AuthService) GetBaseUser(logger go_logger.Logger, userId int)
      */
     @Transactional(readOnly = true)
-    public BaseUserResponse getBaseUser(Integer userId) {
+    public BaseUserResponse getBaseUser(UUID userId) {
         log.debug("GetBaseUser started for userId: {}", userId);
 
-        User user = userDataRepository.getUserWithData(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("User not found: " + userId));
 
         return BaseUserResponse.fromUser(user);
@@ -402,10 +332,10 @@ public class AuthService {
      * Go: func (a *AuthService) GetCompanies(logger go_logger.Logger, userId int)
      */
     @Transactional(readOnly = true)
-    public CompaniesResponse getCompanies(Integer userId) {
+    public CompaniesResponse getCompanies(UUID userId) {
         log.debug("GetCompanies started for userId: {}", userId);
 
-        List<Company> companies = companyRepository.findByOwnerId(userId);
+        List<Tenant> companies = companyRepository.findByOwnerId(userId);
         List<CompanyResponse> companyResponses = companies.stream()
                 .map(CompanyResponse::fromCompany)
                 .collect(Collectors.toList());
@@ -416,21 +346,11 @@ public class AuthService {
     }
 
     /**
-     * Проверка принадлежности проекта пользователю
-     * Go: func (a *AuthService) CheckProjectId(logger go_logger.Logger, userId, projectId int)
-     */
-    @Transactional(readOnly = true)
-    public boolean checkProjectId(Integer userId, Integer projectId) {
-        log.debug("CheckProjectId: userId={}, projectId={}", userId, projectId);
-        return projectAccessRepository.checkProjectOwnership(userId, projectId);
-    }
-
-    /**
      * Проверка роли администратора
      * Go: func (a *AuthService) CheckRoleAdmin(ctx context.Context, logger, userId int)
      */
     @Transactional(readOnly = true)
-    public boolean checkRoleAdmin(Integer userId) {
+    public boolean checkRoleAdmin(UUID userId) {
         log.debug("CheckRoleAdmin for userId: {}", userId);
         return roleService.checkRoleAdmin(userId);
     }
@@ -442,66 +362,14 @@ public class AuthService {
      * Go: func setDefaultUserData(u *models.User)
      */
     private void setDefaultUserData(User user) {
-        // Go: u.BillingId = 0
-        if (user.getBillingId() == null) {
-            user.setBillingId(0);
-        }
-
         // Go: if u.UserSettings == nil { u.UserSettings = &models.UserSettings{Locale: "ru"} }
         if (user.getSettings() == null) {
-            User.UserSettings settings = new User.UserSettings();
+            UserSettings settings = new UserSettings();
             settings.setLocale("ru");
             user.setSettings(settings);
         }
     }
 
-    /**
-     * Создание пользователя и его сущностей
-     * Go: часть метода SignUp - создание пользователя и связанных entity
-     */
-    private Integer createUser(User user, Company company,
-                               List<Map<String, Object>> roles) {
-
-        // Пароль уже захеширован на этом этапе
-        String passwordHash = user.getPasswordHash();
-
-        // 1. Создание записи в public.users
-        user.setPasswordHash(null); // Не храним в public.users
-        User savedUser = userRepository.save(user);
-        Integer userId = savedUser.getId();
-
-        log.debug("User created in public.users: userId={}", userId);
-
-        // 2. Создание схемы userN и всех таблиц
-        userSchemaRepository.createUserSchema(
-                userId,
-                savedUser.getLogin(),
-                passwordHash,
-                user.getEmail(),
-                user.getUserName(),
-                user.getPhone()
-        );
-
-        log.debug("User schema created: user{}", userId);
-
-        // 3. Создание связанных сущностей
-        switch (user.getAccountType()) {
-            case ENTREPRENEUR:
-            case COMPANY_RESIDENT:
-            case COMPANY_NON_RESIDENT:
-            case EDUCATIONAL_UNIT:
-                if (company != null) {
-                    company.setOwner(savedUser);
-                    companyRepository.save(company);
-                    log.debug("Company entity created for userId={}", userId);
-                }
-                break;
-            default:
-                break;
-        }
-
-        return userId;
-    }
 
     /**
      * Аутентификация пользователя
@@ -512,7 +380,7 @@ public class AuthService {
         String passwordHash = passwordService.generatePasswordHash(password);
 
         // Получение пользователя
-        User user = userDataRepository.getUserByLogin(login)
+        User user = userRepository.findByLogin(login)
                 .orElseThrow(() -> new AuthException("Invalid login or password"));
 
         // Сверка паролей
@@ -522,38 +390,6 @@ public class AuthService {
         }
 
         return user;
-    }
-
-    /**
-     * Обновление данных пользователя
-     */
-    private void updateUserData(Integer userId, String login, String passwordHash,
-                                String email, String phone, String userName) {
-
-        // 1. Обновление public.users (если нужно)
-        if (login != null && !login.isEmpty()) {
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new AuthException("User not found"));
-            user.setLogin(login);
-            userRepository.save(user);
-        }
-
-        // 2. Обновление userN.user_data
-        UserData userData = new UserData();
-        if (passwordHash != null) {
-            userData.setPasswordHash(passwordHash);
-        }
-        if (email != null) {
-            userData.setEmail(email);
-        }
-        if (userName != null) {
-            userData.setUserName(userName);
-        }
-        if (phone != null) {
-            userData.setPhone(phone);
-        }
-
-        userDataRepository.updateUserData(userId, userData);
     }
 
     // ==================== CUSTOM EXCEPTIONS ====================

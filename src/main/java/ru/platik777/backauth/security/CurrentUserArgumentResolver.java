@@ -10,6 +10,8 @@ import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
+import java.util.UUID;
+
 /**
  * Резолвер для автоматического извлечения userId из SecurityContext
  *
@@ -25,7 +27,7 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     public boolean supportsParameter(MethodParameter parameter) {
         // Поддерживаем параметры с аннотацией @CurrentUser типа Integer
         return parameter.hasParameterAnnotation(CurrentUser.class) &&
-                Integer.class.isAssignableFrom(parameter.getParameterType());
+                UUID.class.isAssignableFrom(parameter.getParameterType());
     }
 
     @Override
@@ -45,13 +47,11 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         // Principal содержит userId (установлен в JwtAuthenticationFilter)
         Object principal = authentication.getPrincipal();
 
-        if (!(principal instanceof Integer)) {
+        if (!(principal instanceof UUID userId)) {
             log.error("Invalid principal type: expected Integer, got {}",
                     principal.getClass().getSimpleName());
             throw new UnauthorizedException("Invalid authentication principal");
         }
-
-        Integer userId = (Integer) principal;
 
         log.debug("Resolved @CurrentUser: userId={}", userId);
 

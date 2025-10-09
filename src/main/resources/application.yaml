@@ -1,14 +1,14 @@
 server:
-    port: ${BACK_AUTH_PORT}
+    port: ${BACK_AUTH_PORT:8000}
 
 spring:
     application:
         name: back-auth
 
     datasource:
-        url: jdbc:postgresql://${POSTGRESQL_HOST}:${POSTGRESQL_PORT}/${POSTGRESQL_DB}
-        username: ${POSTGRESQL_USERNAME}
-        password: ${POSTGRESQL_PASSWORD}
+        url: jdbc:postgresql://${POSTGRESQL_HOST:localhost}:${POSTGRESQL_PORT:5432}/${POSTGRESQL_DB:postgres}
+        username: ${POSTGRESQL_USERNAME:postgres}
+        password: ${POSTGRESQL_PASSWORD:postgres}
         driver-class-name: org.postgresql.Driver
 
     jpa:
@@ -19,53 +19,47 @@ spring:
             hibernate:
                 dialect: org.hibernate.dialect.PostgreSQLDialect
                 format_sql: true
+                # Исправление для PostgreSQL ENUM
+                type:
+                    preferred_jdbc_type_for_enum: VARCHAR
+                jdbc:
+                    use_get_generated_keys: true
+
+
 
     liquibase:
         change-log: classpath:db/changelog/db.changelog-master.xml
 
-    mail:
-        host: ${SMTP_HOST}
-        port: ${SMTP_PORT}
-        username: ${SMTP_SENDER_EMAIL}
-        password: ${SMTP_PASSWORD}
-        properties:
-            mail:
-                smtp:
-                    auth: true
-                    ssl:
-                        enable: ${SMTP_TLS}
-                    starttls:
-                        enable: true
+    # mail:
+        #        host: ${SMTP_HOST}
+        #        port: ${SMTP_PORT}
+        #        username: ${SMTP_SENDER_EMAIL}
+        #        password: ${SMTP_PASSWORD}
+            #        properties:
+            #            mail:
+            #                smtp:
+            #                    auth: true
+            #                    ssl:
+            #                        enable: ${SMTP_TLS}
+            #                    starttls:
+    #                        enable: true
 
     security:
         user:
             name: admin
             password: admin
 
-management:
-    endpoints:
-        web:
-            exposure:
-                include: health,info,metrics,prometheus
-    endpoint:
-        health:
-            show-details: always
-    prometheus:
-        metrics:
-            export:
-                enabled: true
-
 app:
-    base-url: ${BASE_URL}
+    base-url: ${BASE_URL:base-url}
 
     jwt:
         constants:
-            app-access-prefix: ${JWT_CONST_APP_ACCESS_PREFIX}
-            app-refresh-prefix: ${JWT_CONST_APP_REFRESH_PREFIX}
-            base-access-prefix: ${JWT_CONST_BASE_ACCESS_PREFIX}
-            base-refresh-prefix: ${JWT_CONST_BASE_REFRESH_PREFIX}
-            reset-password-prefix: ${JWT_CONST_RESET_PASSWORD_PREFIX}
-            salt: ${JWT_CONST_SALT}
+            app-access-prefix: ${JWT_CONST_APP_ACCESS_PREFIX:3517b2068b99a6e77da35428858a2bc53bdebda6ca58fef7d923a42af3207d91}
+            app-refresh-prefix: ${JWT_CONST_APP_REFRESH_PREFIX:bb90784eb5fc61f3790e328de1054c9ed540da19f316ef348f904b6f026d1e59}
+            base-access-prefix: ${JWT_CONST_BASE_ACCESS_PREFIX:5684c3d765c61802a8f24ef7d2f11643da7a25f2a49fb7e4f49e274f8ddd33fc}
+            base-refresh-prefix: ${JWT_CONST_BASE_REFRESH_PREFIX:dacf7075b3ab057225a258407ca272145b6c042d48b8e04ea8ac4c017072d261}
+            reset-password-prefix: ${JWT_CONST_RESET_PASSWORD_PREFIX:b11e6fb35702a0ac7527cd2981051988c9fe64ad6c4b45ca698f2d08a119a06c}
+            salt: ${JWT_CONST_SALT:ac874e1f8528392b776fe782374163c9a25b397f81a6bdb7543cdda95a70a238}
 
         app:
             access:
@@ -81,24 +75,24 @@ app:
             expiration: ${JWT_RESET_PASSWORD_EXPIRATION:600000}
 
         api-key:
-            secret: ${JWT_API_KEY_SECRET}
+            secret: ${JWT_API_KEY_SECRET:default_api_key_change_in_production}
 
 
 
-    smtp:
-        send-to-logs: ${SMTP_SEND_TO_LOGS:false}
-        support-email: ${SMTP_SUPPORT_EMAIL}
-        product-email: ${SMTP_PRODUCT_EMAIL}
+    # smtp:
+        # send-to-logs: ${SMTP_SEND_TO_LOGS:false}
+        # support-email: ${SMTP_SUPPORT_EMAIL}
+        # product-email: ${SMTP_PRODUCT_EMAIL}
 
     back-access:
-        host: ${BACK_ACCESS_HOST}
-        port: ${BACK_ACCESS_PORT}
-        key-edit-access: ${KEY_EDIT_ACCESS}
+        host: ${BACK_ACCESS_HOST:host}
+        port: ${BACK_ACCESS_PORT:8080}
+        key-edit-access: ${KEY_EDIT_ACCESS:key}
         timeout: ${BACK_ACCESS_TIMEOUT:30000}
 
-    back-log:
-        host: ${BACK_LOG_HOST}
-        port: ${BACK_LOG_PORT}
+    #back-log:
+        #host: ${BACK_LOG_HOST}
+        #port: ${BACK_LOG_PORT}
 
 logging:
     level:

@@ -2,7 +2,9 @@ package ru.platik777.backauth.mapper;
 
 import org.springframework.stereotype.Component;
 import ru.platik777.backauth.dto.request.SignUpRequest;
-import ru.platik777.backauth.entity.Company;
+import ru.platik777.backauth.entity.Tenant;
+
+import java.time.LocalDate;
 
 /**
  * Маппер для преобразования DTO в Company Entity
@@ -13,30 +15,30 @@ public class CompanyMapper {
     /**
      * Маппинг CompanyDto в Company Entity
      */
-    public Company toEntity(SignUpRequest.CompanyDto dto) {
+    public Tenant toEntity(SignUpRequest.CompanyDto dto) {
         if (dto == null) {
             return null;
         }
 
-        Company company = new Company();
-        company.setFullTitle(dto.getFullTitle());
-        company.setCountry(dto.getCountry());
-        company.setLegalAddress(dto.getLegalAddress());
-        company.setPostAddress(dto.getPostAddress());
-        company.setAccountNumber(dto.getAccountNumber());
-        company.setBankName(dto.getBankName());
-        company.setBic(dto.getBic());
-        company.setTaxBank(dto.getTaxBank());
-        company.setKppBank(dto.getKppBank());
-        company.setCorrespondentAccount(dto.getCorrespondentAccount());
-        company.setTaxNumber(dto.getTaxNumber());
-        company.setOgrn(dto.getOgrn());
-        company.setOgrnip(dto.getOgrnip());
-        company.setKpp(dto.getKpp());
-        company.setKio(dto.getKio());
-        company.setLicenseNumber(dto.getLicenseNumber());
-        company.setLicenseIssueDate(dto.getLicenseIssueDate());
+        Tenant tenant = new Tenant();
+        tenant.setFullTitle(dto.getFullTitle());
+        tenant.setCountry(dto.getCountry());
+        tenant.setLegalAddress(dto.getLegalAddress());
+        tenant.setPostAddress(dto.getPostAddress());
+        tenant.setAccountNumber(dto.getAccountNumber());
+        tenant.setBankName(dto.getBankName());
+        tenant.setBic(dto.getBic());
+        tenant.setTaxBank(dto.getTaxBank());
+        tenant.setKppBank(dto.getKppBank());
+        tenant.setCorrespondentAccount(dto.getCorrespondentAccount());
+        tenant.setTaxNumber(dto.getTaxNumber());
+        tenant.setOgrn(dto.getOgrn());
+        tenant.setOgrnip(dto.getOgrnip());
+        tenant.setKpp(dto.getKpp());
+        tenant.setKio(dto.getKio());
+        tenant.setLicenseNumber(dto.getLicenseNumber());
+        tenant.setLicenseIssueDate(LocalDate.parse(dto.getLicenseIssueDate()));
 
-        return company;
+        return tenant;
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -127,12 +128,12 @@ public class RoleService {
      * @return CompletableFuture для отслеживания выполнения
      */
     @Async
-    public CompletableFuture<Void> setTariffAsync(Integer userId, List<Object> useModules) {
+    public CompletableFuture<Void> setTariffAsync(UUID userId, List<Object> useModules) {
         log.debug("Setting tariff asynchronously for userId: {}", userId);
 
         // Проверка входных данных
-        if (userId == null || userId <= 0) {
-            log.error("Invalid userId: {}", userId);
+        if (userId == null) {
+            log.error("Invalid userId");
             return CompletableFuture.failedFuture(
                     new IllegalArgumentException("Invalid userId")
             );
@@ -171,7 +172,7 @@ public class RoleService {
                 return CompletableFuture.completedFuture(null);
             } else {
                 String errorMsg = String.format(
-                        "Failed to set tariff. Status: %s, UserId: %d",
+                        "Failed to set tariff. Status: %s, UserId: %s",
                         response.getStatusCode(), userId
                 );
                 log.error(errorMsg);
@@ -204,11 +205,11 @@ public class RoleService {
      * @param userId ID пользователя
      * @return true если пользователь администратор
      */
-    public boolean checkRoleAdmin(Integer userId) {
+    public boolean checkRoleAdmin(UUID userId) {
         log.debug("Checking admin role for userId: {}", userId);
 
-        if (userId == null || userId <= 0) {
-            log.warn("Invalid userId for admin check: {}", userId);
+        if (userId == null) {
+            log.warn("Invalid userId for admin check");
             return false;
         }
 
@@ -278,7 +279,7 @@ public class RoleService {
      * Go: bodyStruct := struct { UserId int; UseModules []any }
      */
     private record TariffRequest(
-            Integer userId,
+            UUID userId,
             List<Object> useModules
     ) {}
 

@@ -15,6 +15,7 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Сервис работы с JWT токенами
@@ -56,7 +57,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с 4 токенами
      */
-    public TokensResponse createAllTokens(Integer userId) {
+    public TokensResponse createAllTokens(UUID userId) {
         log.debug("Creating all tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -80,7 +81,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createAppTokens(Integer userId) {
+    public Map<String, String> createAppTokens(UUID userId) {
         log.debug("Creating App tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -115,7 +116,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createBaseTokens(Integer userId) {
+    public Map<String, String> createBaseTokens(UUID userId) {
         log.debug("Creating Base tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -150,7 +151,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Reset password токен
      */
-    public String createResetPasswordToken(Integer userId) {
+    public String createResetPasswordToken(UUID userId) {
         log.debug("Creating reset password token for userId: {}", userId);
 
         validateUserId(userId);
@@ -175,7 +176,7 @@ public class JwtService {
      * @param expireAt Дата истечения
      * @return API ключ токен
      */
-    public String createApiKeyToken(Integer userId, LocalDateTime expireAt) {
+    public String createApiKeyToken(UUID userId, LocalDateTime expireAt) {
         log.debug("Creating API key token for userId: {} with expiration: {}",
                 userId, expireAt);
 
@@ -216,7 +217,7 @@ public class JwtService {
      * @return userId из токена
      * @throws JwtException если токен невалидный
      */
-    public Integer parseToken(String token, String signingKey) {
+    public UUID parseToken(String token, String signingKey) {
         if (token == null || token.isEmpty()) {
             throw new IllegalArgumentException("Token cannot be empty");
         }
@@ -234,15 +235,15 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            Integer userId = claims.get("userId", Integer.class);
+            String userId = claims.get("userId", String.class);
 
             // Go: if claims.UserId == 0
-            if (userId == null || userId == 0) {
+            if (userId == null) {
                 throw new JwtException("UserId is empty in token");
             }
 
             log.debug("Token parsed successfully. UserId: {}", userId);
-            return userId;
+            return UUID.fromString(userId);
 
         } catch (ExpiredJwtException e) {
             log.debug("Token expired: {}", e.getMessage());
@@ -297,7 +298,7 @@ public class JwtService {
      * @param tokenType Тип токена (для отладки и claims)
      * @return JWT токен
      */
-    private String createToken(Integer userId, long validityMillis,
+    private String createToken(UUID userId, long validityMillis,
                                String signingKey, TokenType tokenType) {
 
         validateUserId(userId);
@@ -366,9 +367,9 @@ public class JwtService {
     /**
      * Валидация userId
      */
-    private void validateUserId(Integer userId) {
-        if (userId == null || userId <= 0) {
-            throw new IllegalArgumentException("Invalid userId: " + userId);
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new IllegalArgumentException("Invalid userId");
         }
     }
 

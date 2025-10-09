@@ -4,10 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import ru.platik777.backauth.entity.Company;
+import ru.platik777.backauth.entity.Tenant;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * DTO компании для ответа
@@ -37,31 +38,29 @@ public class CompanyResponse {
     private String licenseNumber;
     private String licenseIssueDate;
     private LocalDateTime createdAt;
-    private List<Integer> usersList;
+    private List<UUID> usersList;
 
-    public static CompanyResponse fromCompany(Company company) {
+    public static CompanyResponse fromCompany(Tenant tenant) {
         return CompanyResponse.builder()
-                .companyId(company.getCompanyId())
-                .ownerId(company.getOwnerId())
-                .fullTitle(company.getFullTitle())
-                .country(company.getCountry())
-                .legalAddress(company.getLegalAddress())
-                .postAddress(company.getPostAddress())
-                .accountNumber(company.getAccountNumber())
-                .bankName(company.getBankName())
-                .bic(company.getBic())
-                .taxBank(company.getTaxBank())
-                .kppBank(company.getKppBank())
-                .correspondentAccount(company.getCorrespondentAccount())
-                .taxNumber(company.getTaxNumber())
-                .ogrn(company.getOgrn())
-                .ogrnip(company.getOgrnip())
-                .kpp(company.getKpp())
-                .kio(company.getKio())
-                .licenseNumber(company.getLicenseNumber())
-                .licenseIssueDate(company.getLicenseIssueDate())
-                .createdAt(company.getCreatedAt())
-                .usersList(company.getUsersList())
+                .fullTitle(tenant.getFullTitle())
+                .country(tenant.getCountry())
+                .legalAddress(tenant.getLegalAddress())
+                .postAddress(tenant.getPostAddress())
+                .accountNumber(tenant.getAccountNumber())
+                .bankName(tenant.getBankName())
+                .bic(tenant.getBic())
+                .taxBank(tenant.getTaxBank())
+                .kppBank(tenant.getKppBank())
+                .correspondentAccount(tenant.getCorrespondentAccount())
+                .taxNumber(tenant.getTaxNumber())
+                .ogrn(tenant.getOgrn())
+                .ogrnip(tenant.getOgrnip())
+                .kpp(tenant.getKpp())
+                .kio(tenant.getKio())
+                .licenseNumber(tenant.getLicenseNumber())
+                .licenseIssueDate(String.valueOf(tenant.getLicenseIssueDate()))
+                .createdAt(LocalDateTime.from(tenant.getCreatedAt()))
+                .usersList(tenant.getUsersList())
                 .build();
     }
 }

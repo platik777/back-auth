@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * JWT фильтр с правильной обработкой ошибок
@@ -51,7 +52,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             "/monitor",
             "/actuator",
             "/metrics",
-            "/api/v1/key/check"  // Проверка API ключа
+            "/api/v1/key/check",  // Проверка API ключа
+
+            // Swagger UI и документация
+            "/swagger-ui",
+            "/v3/api-docs",
+            "/swagger-resources",
+            "/webjars"
     };
 
     @Override
@@ -88,7 +95,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             TokenType tokenType = determineTokenType(requestPath);
 
             // 4. Валидируем токен соответствующим ключом
-            Integer userId = validateToken(token, tokenType);
+            UUID userId = validateToken(token, tokenType);
 
             if (userId == null) {
                 sendUnauthorizedError(response, "Invalid or expired token");
@@ -109,6 +116,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
             request.setAttribute("userId", userId);
+            request.setAttribute("jwtToken", token);
 
             log.debug("JWT authenticated: userId={}, path={}, tokenType={}",
                     userId, requestPath, tokenType);
@@ -162,7 +170,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Валидация токена соответствующим ключом
      */
-    private Integer validateToken(String token, TokenType tokenType) {
+    private UUID validateToken(String token, TokenType tokenType) {
         try {
             String signingKey = switch (tokenType) {
                 case APP_ACCESS -> keyService.getSigningAppKeyAccess();

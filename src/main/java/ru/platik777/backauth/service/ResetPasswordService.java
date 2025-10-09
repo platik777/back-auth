@@ -6,12 +6,13 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.platik777.backauth.dto.response.ResetPasswordCheckResponse;
-import ru.platik777.backauth.entity.UserData;
 import ru.platik777.backauth.dto.response.StatusResponse;
 import ru.platik777.backauth.dto.response.UserResponse;
 import ru.platik777.backauth.entity.User;
-import ru.platik777.backauth.repository.UserDataRepository;
+import ru.platik777.backauth.repository.UserRepository;
 import ru.platik777.backauth.util.EmailMasker;
+
+import java.util.UUID;
 
 /**
  * Сервис восстановления пароля
@@ -22,14 +23,14 @@ import ru.platik777.backauth.util.EmailMasker;
 @RequiredArgsConstructor
 public class ResetPasswordService {
 
-    private final UserDataRepository userDataRepository;
     private final JwtService jwtService;
     private final KeyService keyService;
     private final PasswordService passwordService;
-    private final EmailService emailService;
+    //private final EmailService emailService;
     private final ValidationService validationService;
     private final TokenBlacklistService tokenBlacklistService;
     private final EmailMasker emailMasker;
+    private final UserRepository userRepository;
 
     @Value("${app.base-url}")
     private String baseUrl;
@@ -61,7 +62,13 @@ public class ResetPasswordService {
 
         // Поиск userId по email
         // Go: userId, err := a.db.SearchUserIdByEmail(logger, targetEmail)
-        Integer userId = userDataRepository.findUserIdByEmail(targetEmail);
+        User user = userRepository.findByEmail(targetEmail)
+                .orElseGet(() -> {
+                    log.error("Failed to get user data for email: {}", targetEmail);
+                    return null;
+                });
+        assert user != null;
+        UUID userId = user.getId();
 
         // Если пользователь не найден, возвращаем успешный ответ (защита от перебора)
         // Go: if errors.Is(err, models.ErrorUserNotFound) { return success }
@@ -72,15 +79,7 @@ public class ResetPasswordService {
         }
 
         // Получение данных пользователя
-        User user = userDataRepository.getUserWithData(userId)
-                .orElseGet(() -> {
-                    log.error("Failed to get user data for userId: {}", userId);
-                    return null;
-                });
 
-        if (user == null) {
-            return createSuccessResponse();
-        }
 
         try {
             // Создание токена восстановления пароля
@@ -96,14 +95,13 @@ public class ResetPasswordService {
 
             // Отправка письма
             // Go: smtp.SendingMessage(logger, senderEmail, targetEmail, subject, "text/html; charset=UTF-8", bodyHtml)
-            emailService.sendResetPasswordEmail(
-                    targetEmail,
-                    subject,
-                    resetPasswordUrl,
-                    user.getUserName(),
-                    user.getLogin(),
-                    locale != null ? locale : "ru"
-            );
+            // emailService.sendResetPasswordEmail(
+            //        targetEmail,
+            //        subject,
+            //        resetPasswordUrl,
+            //        user.getLogin(),
+            //        locale != null ? locale : "ru"
+            //);
 
             log.info("Reset password email sent successfully to: {}", emailMasker.mask(targetEmail));
 
@@ -141,7 +139,7 @@ public class ResetPasswordService {
         try {
             // Проверка JWT токена
             // Go: userId, err := parseToken(token, a.Key.GetSigningKeyResetPassword())
-            Integer userId = jwtService.parseToken(
+            UUID userId = jwtService.parseToken(
                     token,
                     keyService.getSigningKeyResetPassword()
             );
@@ -170,67 +168,8 @@ public class ResetPasswordService {
      */
     @Transactional
     public UserResponse resetPasswordUpdate(String token, String password) {
-        log.debug("ResetPasswordUpdate started");
-
-        // Валидация входных данных
-        if (token == null || token.trim().isEmpty()) {
-            throw new ResetPasswordException("Token cannot be empty");
-        }
-
-        // Валидация пароля
-        try {
-            validationService.validatePassword(password);
-        } catch (Exception e) {
-            throw new ResetPasswordException("Invalid password: " + e.getMessage(), e);
-        }
-
-        Integer userId;
-
-        try {
-            // Проверка JWT токена
-            // Go: userId, err := parseToken(token, a.Key.GetSigningKeyResetPassword())
-            userId = jwtService.parseToken(
-                    token,
-                    keyService.getSigningKeyResetPassword()
-            );
-
-        } catch (JwtService.JwtException e) {
-            log.warn("Invalid reset password token: {}", e.getMessage());
-            throw new ResetPasswordException("Token is invalid", e);
-        }
-
-        try {
-            // Хеширование нового пароля
-            // Go: passwordHash, err := generatePasswordHash(logger, password)
-            String passwordHash = passwordService.generatePasswordHash(password);
-
-            // Обновление пароля в userN.user_data
-            // Go: infoUser := models.User{ Id: userId, ResetPassword: passwordHash }
-            //     a.db.EditUser(logger, &infoUser)
-            UserData userData = new UserData();
-            userData.setPasswordHash(passwordHash);
-            userDataRepository.updateUserData(userId, userData);
-
-            // Добавление токена в черный список для предотвращения повторного использования
-            // Go: a.tokenBlackList.AddToken(token)
-            tokenBlacklistService.addToken(token);
-
-            log.info("Password reset successfully for userId: {}", userId);
-
-            // Получение обновленных данных пользователя
-            User user = userDataRepository.getUserWithData(userId)
-                    .orElseThrow(() -> new ResetPasswordException("Failed to retrieve updated user"));
-
-            user.setPasswordHash(null);
-
-            return UserResponse.fromUser(user);
-
-        } catch (ResetPasswordException e) {
-            throw e;
-        } catch (Exception e) {
-            log.error("Error updating password for userId: {}", userId, e);
-            throw new ResetPasswordException("Failed to update password", e);
-        }
+        // TODO: реализовать
+        return null;
     }
 
     // ==================== PRIVATE METHODS ====================

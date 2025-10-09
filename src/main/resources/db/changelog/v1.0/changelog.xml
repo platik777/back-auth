@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Включение расширения UUID для PostgreSQL -->
+    <changeSet id="initial-0" author="developer">
+        <sql>CREATE EXTENSION IF NOT EXISTS "uuid-ossp";</sql>
+    </changeSet>
+
+    <!-- Создание таблицы users -->
+    <changeSet id="initial-1" author="developer">
+        <createTable tableName="users">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="login" type="VARCHAR(100)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="settings" type="JSONB"/>
+            <column name="account_type" type="VARCHAR(255)"/>
+            <column name="password_hash" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="VARCHAR(255)">
+                <constraints unique="true"/>
+            </column>
+            <column name="phone" type="VARCHAR(50)"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы tenant -->
+    <changeSet id="initial-2" author="developer">
+        <createTable tableName="tenant">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="owner_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_tenant_owner" references="users(id)"/>
+            </column>
+            <column name="bank_name" type="VARCHAR(255)"/>
+            <column name="account_number" type="VARCHAR(100)"/>
+            <column name="bic" type="VARCHAR(50)"/>
+            <column name="kpp_bank" type="VARCHAR(50)"/>
+            <column name="tax_bank" type="VARCHAR(50)"/>
+            <column name="correspondent_account" type="VARCHAR(100)"/>
+            <column name="full_title" type="VARCHAR(500)"/>
+            <column name="ogrn" type="VARCHAR(50)"/>
+            <column name="ogrnip" type="VARCHAR(50)"/>
+            <column name="kpp" type="VARCHAR(50)"/>
+            <column name="legal_address" type="TEXT"/>
+            <column name="post_address" type="TEXT"/>
+            <column name="tax_number" type="VARCHAR(50)"/>
+            <column name="country" type="VARCHAR(100)"/>
+            <column name="kio" type="VARCHAR(50)"/>
+            <column name="license_number" type="VARCHAR(100)"/>
+            <column name="license_issue_date" type="DATE"/>
+            <column name="users_list" type="UUID[]"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы folders -->
+    <changeSet id="initial-3" author="developer">
+        <createTable tableName="folders">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="name" type="VARCHAR(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="parent_id" type="UUID"/>
+            <column name="all_parant_ids" type="UUID[]"/>
+            <column name="rank" type="INTEGER"/>
+            <column name="has_children" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="item_types" type="TEXT[]"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <addForeignKeyConstraint
+                baseTableName="folders"
+                baseColumnNames="parent_id"
+                constraintName="fk_folder_parent"
+                referencedTableName="folders"
+                referencedColumnNames="id"
+                onDelete="CASCADE"/>
+    </changeSet>
+
+    <!-- Создание таблицы projects -->
+    <changeSet id="initial-4" author="developer">
+        <createTable tableName="projects">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="folder_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_project_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+            <column name="all_parant_ids" type="UUID[]"/>
+            <column name="rank" type="INTEGER"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы deltas -->
+    <changeSet id="initial-5" author="developer">
+        <createTable tableName="deltas">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_delta_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="number_version" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="comment" type="TEXT"/>
+            <column name="is_parent" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="delta" type="JSONB"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы blocks -->
+    <changeSet id="initial-6" author="developer">
+        <createTable tableName="blocks">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="all_parant_ids" type="UUID[]"/>
+            <column name="rank" type="INTEGER"/>
+            <column name="folder_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_block_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы files -->
+    <changeSet id="initial-7" author="developer">
+        <createTable tableName="files">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="all_parant_ids" type="UUID[]"/>
+            <column name="rank" type="INTEGER"/>
+            <column name="folder_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_file_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы item_user_permission -->
+    <changeSet id="initial-8" author="developer">
+        <createTable tableName="item_user_permission">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_permission_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="permissions" type="SMALLINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="UUID">
+                <constraints foreignKeyName="fk_permission_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="folder_id" type="UUID">
+                <constraints foreignKeyName="fk_permission_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+            <column name="file_id" type="UUID">
+                <constraints foreignKeyName="fk_permission_file" references="files(id)" deleteCascade="true"/>
+            </column>
+            <column name="block_id" type="UUID">
+                <constraints foreignKeyName="fk_permission_block" references="blocks(id)" deleteCascade="true"/>
+            </column>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <!-- Добавляем constraint для проверки значения битовой маски 0-7 -->
+
+        <!-- Constraint для проверки что заполнено только одно поле из project/folder/file/block -->
+        <sql>
+            ALTER TABLE item_user_permission
+                ADD CONSTRAINT check_single_item_reference
+                    CHECK (
+                        (project_id IS NOT NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NOT NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NOT NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NOT NULL)
+                        );
+        </sql>
+    </changeSet>
+
+    <!-- Создание таблицы api_key -->
+    <changeSet id="initial-9" author="developer">
+        <createTable tableName="api_key">
+            <column name="id" type="UUID" defaultValueComputed="uuid_generate_v4()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="api_key" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="UUID">
+                <constraints nullable="false" foreignKeyName="fk_apikey_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="expire_at" type="TIMESTAMP"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="is_deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание индексов для оптимизации -->
+    <changeSet id="initial-10" author="developer">
+        <createIndex tableName="users" indexName="idx_users_email">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex tableName="users" indexName="idx_users_login">
+            <column name="login"/>
+        </createIndex>
+
+        <createIndex tableName="projects" indexName="idx_projects_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="folders" indexName="idx_folders_parent">
+            <column name="parent_id"/>
+        </createIndex>
+
+        <createIndex tableName="deltas" indexName="idx_deltas_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="deltas" indexName="idx_deltas_project_version">
+            <column name="project_id"/>
+            <column name="number_version"/>
+        </createIndex>
+
+        <createIndex tableName="item_user_permission" indexName="idx_permission_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="api_key" indexName="idx_apikey_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="api_key" indexName="idx_apikey_key">
+            <column name="api_key"/>
+        </createIndex>
+
+        <createIndex tableName="tenant" indexName="idx_tenant_owner">
+            <column name="owner_id"/>
+        </createIndex>
+
+        <!-- GIN индексы для JSONB полей -->
+        <sql>CREATE INDEX idx_users_settings ON users USING GIN (settings);</sql>
+        <sql>CREATE INDEX idx_deltas_delta ON deltas USING GIN (delta);</sql>
+
+        <!-- GIN индексы для массивов -->
+        <sql>CREATE INDEX idx_folders_all_parant_ids ON folders USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_projects_all_parant_ids ON projects USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_blocks_all_parant_ids ON blocks USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_files_all_parant_ids ON files USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_tenant_users_list ON tenant USING GIN (users_list);</sql>
+
+        <!-- Уникальные partial индексы для гарантии уникальности permission на item для пользователя -->
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_project
+                ON item_user_permission (user_id, project_id)
+                WHERE project_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_folder
+                ON item_user_permission (user_id, folder_id)
+                WHERE folder_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_file
+                ON item_user_permission (user_id, file_id)
+                WHERE file_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_block
+                ON item_user_permission (user_id, block_id)
+                WHERE block_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

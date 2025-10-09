@@ -5,9 +5,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import ru.platik777.backauth.entity.types.AccountType;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Репозиторий для работы с таблицей public.users
@@ -17,7 +19,7 @@ import java.util.Optional;
  * Для работы с userN.user_data используйте UserDataRepository
  */
 @Repository
-public interface UserRepository extends JpaRepository<User, Integer> {
+public interface UserRepository extends JpaRepository<User, UUID> {
 
     /**
      * GetUserByLogin / SearchUserIdByLogin
@@ -40,30 +42,16 @@ public interface UserRepository extends JpaRepository<User, Integer> {
     Optional<Integer> findUserIdByLogin(@Param("login") String login);
 
     /**
-     * getUserIdsList - получение всех ID пользователей
-     * Go: SELECT user_id FROM public.users
-     *
-     * Используется в SearchUserIdByEmail и SearchUserIdByPhone
-     * для перебора всех схем userN.user_data
-     */
-    List<Integer> findAllUserIds();
-
-    /**
-     * GetCompaniesOfUser - получение пользователя со всеми компаниями
-     * Go: используется в getCompany для получения owner
-     */
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.ownedCompanies WHERE u.id = :userId")
-    Optional<User> findByIdWithCompanies(@Param("userId") Integer userId);
-
-    /**
-     * GetStudentDataByUserId - получение пользователя со студенческими данными
-     */
-    @Query("SELECT u FROM User u LEFT JOIN FETCH u.student WHERE u.id = :userId")
-    Optional<User> findByIdWithStudent(@Param("userId") Integer userId);
-
-    /**
      * Получение пользователей по типу аккаунта
      * Может использоваться для фильтрации по account_type
      */
-    List<User> findByAccountType(@Param("accountType") User.AccountType accountType);
+    List<User> findByAccountType(@Param("accountType") AccountType accountType);
+
+    boolean existsByPhone(String phone);
+
+    boolean existsByEmail(String email);
+
+    Optional<User> findByLogin(String login);
+
+    Optional<User> findByEmail(String email);
 }

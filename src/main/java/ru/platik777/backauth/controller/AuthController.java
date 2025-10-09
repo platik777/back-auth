@@ -1,5 +1,7 @@
 package ru.platik777.backauth.controller;
 
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -7,13 +9,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.platik777.backauth.dto.request.*;
 import ru.platik777.backauth.dto.response.*;
-import ru.platik777.backauth.entity.Company;
+import ru.platik777.backauth.entity.Tenant;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.mapper.CompanyMapper;
 import ru.platik777.backauth.mapper.UserMapper;
 import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.AuthService;
-import ru.platik777.backauth.util.TokenExtractor;
+
+import java.security.Principal;
+import java.util.UUID;
 
 /**
  * Основной контроллер аутентификации и авторизации
@@ -29,7 +33,6 @@ public class AuthController {
     private final AuthService authService;
     private final UserMapper userMapper;
     private final CompanyMapper companyMapper;
-    private final TokenExtractor tokenExtractor;
 
     // ========== ПУБЛИЧНЫЕ ENDPOINTS (без токена) ==========
 
@@ -42,10 +45,12 @@ public class AuthController {
         log.info("Sign-up request for login: {}",
                 request.getUser() != null ? request.getUser().getLogin() : "null");
 
+        log.debug("User in request: {}", request.getUser());
         User user = userMapper.toEntity(request.getUser());
-        Company company = companyMapper.toEntity(request.getCompany());
+        log.debug("User in controller: {}", user);
+        Tenant tenant = companyMapper.toEntity(request.getCompany());
 
-        SignUpResponse response = authService.signUp(user, company, request.getLocale());
+        SignUpResponse response = authService.signUp(user, tenant, request.getLocale());
 
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
@@ -77,12 +82,12 @@ public class AuthController {
      * Обновление app токенов по app refresh token
      */
     @PostMapping("/auth/refreshToken")
-    public ResponseEntity<TokenResponse> refreshAppToken(
-            @RequestBody TokenRefreshRequest request) {
+    public ResponseEntity<TokenResponse> refreshAppToken(Principal principal) {
 
         log.debug("Refreshing app token");
+        UUID userId = UUID.fromString(principal.getName());
 
-        TokenResponse response = authService.refreshAppToken(request.getRefreshToken());
+        TokenResponse response = authService.refreshAppToken(userId);
 
         return ResponseEntity.ok(response);
     }
@@ -92,12 +97,12 @@ public class AuthController {
      * Обновление app токенов по base refresh token
      */
     @PostMapping("/auth/refreshTokenByBaseToken")
-    public ResponseEntity<TokenResponse> refreshAppTokenByBaseToken(
-            @RequestBody TokenRefreshRequest request) {
+    public ResponseEntity<TokenResponse> refreshAppTokenByBaseToken(Principal principal) {
 
         log.debug("Refreshing app token by base token");
 
-        TokenResponse response = authService.refreshAppTokenByBaseToken(request.getRefreshToken());
+        UUID userId = UUID.fromString(principal.getName());
+        TokenResponse response = authService.refreshAppTokenByBaseToken(userId);
 
         return ResponseEntity.ok(response);
     }
@@ -107,12 +112,11 @@ public class AuthController {
      * Обновление base токенов
      */
     @PostMapping("/auth/refreshBaseToken")
-    public ResponseEntity<TokenResponse> refreshBaseToken(
-            @RequestBody TokenRefreshRequest request) {
+    public ResponseEntity<TokenResponse> refreshBaseToken(Principal principal) {
 
         log.debug("Refreshing base token");
-
-        TokenResponse response = authService.refreshBaseToken(request.getRefreshToken());
+        UUID userId = UUID.fromString(principal.getName());
+        TokenResponse response = authService.refreshBaseToken(userId);
 
         return ResponseEntity.ok(response);
     }
@@ -124,12 +128,10 @@ public class AuthController {
      * Проверка app авторизации (для других микросервисов)
      */
     @PostMapping("/auth/isAuthorization")
-    public ResponseEntity<AuthorizationResponse> isAppAuthorization(
-            @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<AuthorizationResponse> isAppAuthorization(HttpServletRequest request) {
 
         log.debug("Checking app authorization");
-
-        String accessToken = tokenExtractor.extractToken(authHeader);
+        String accessToken = (String) request.getAttribute("jwtToken");
         AuthorizationResponse response = authService.isAppAuthorization(accessToken);
 
         return ResponseEntity.ok(response);
@@ -140,12 +142,11 @@ public class AuthController {
      * Проверка base авторизации (для других микросервисов)
      */
     @PostMapping("/auth/isBaseAuthorization")
-    public ResponseEntity<AuthorizationResponse> isBaseAuthorization(
-            @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<AuthorizationResponse> isBaseAuthorization(HttpServletRequest request) {
 
         log.debug("Checking base authorization");
 
-        String accessToken = tokenExtractor.extractToken(authHeader);
+        String accessToken = (String) request.getAttribute("jwtToken");
         AuthorizationResponse response = authService.isBaseAuthorization(accessToken);
 
         return ResponseEntity.ok(response);
@@ -160,8 +161,9 @@ public class AuthController {
      * ВАЖНО: userId извлекается из JWT токена через @CurrentUser
      */
     @PostMapping("/auth/editUser")
+    @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<UserResponse> editUser(
-            @CurrentUser Integer userId,
+            @CurrentUser UUID userId,
             @RequestBody UpdateUserRequest request) {
 
         log.info("Edit user request from userId: {}", userId);
@@ -191,20 +193,10 @@ public class AuthController {
      */
     @PostMapping("/auth/checkProjectId")
     public ResponseEntity<ProjectAccessResponse> checkProjectId(
-            @CurrentUser Integer userId,
+            @CurrentUser UUID userId,
             @RequestBody CheckProjectRequest request) {
-
-        log.debug("Checking project access: userId={}, projectId={}",
-                userId, request.getProjectId());
-
-        // Используем userId из токена, игнорируем из request
-        boolean hasAccess = authService.checkProjectId(userId, request.getProjectId());
-
-        return ResponseEntity.ok(
-                ProjectAccessResponse.builder()
-                        .hasAccess(hasAccess)
-                        .build()
-        );
+        // TODO: Реализовать
+        return null;
     }
 
     /**
@@ -212,7 +204,7 @@ public class AuthController {
      * Проверка роли администратора
      */
     @PostMapping("/auth/checkRoleAdmin")
-    public ResponseEntity<StatusResponse> checkRoleAdmin(@CurrentUser Integer userId) {
+    public ResponseEntity<StatusResponse> checkRoleAdmin(@CurrentUser UUID userId) {
 
         log.debug("Checking admin role for userId: {}", userId);
 
@@ -249,7 +241,8 @@ public class AuthController {
      * Получение данных текущего пользователя
      */
     @GetMapping("/api/v1/user")
-    public ResponseEntity<UserResponse> getUser(@CurrentUser Integer userId) {
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<UserResponse> getUser(@CurrentUser UUID userId) {
 
         log.debug("Get user request for userId: {}", userId);
 
@@ -263,7 +256,8 @@ public class AuthController {
      * Получение базовых данных пользователя (через Base токен)
      */
     @GetMapping("/api/v1/base/user")
-    public ResponseEntity<BaseUserResponse> getBaseUser(@CurrentUser Integer userId) {
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<BaseUserResponse> getBaseUser(@CurrentUser UUID userId) {
 
         log.debug("Get base user request for userId: {}", userId);
 
@@ -277,7 +271,8 @@ public class AuthController {
      * Получение компаний пользователя
      */
     @GetMapping("/api/v1/user/company")
-    public ResponseEntity<CompaniesResponse> getCompanies(@CurrentUser Integer userId) {
+    @SecurityRequirement(name = "bearerAuth")
+    public ResponseEntity<CompaniesResponse> getCompanies(@CurrentUser UUID userId) {
 
         log.debug("Get companies request for userId: {}", userId);
 

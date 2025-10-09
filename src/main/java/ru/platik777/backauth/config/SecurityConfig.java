@@ -48,6 +48,15 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authz -> authz
                         // ========== ПУБЛИЧНЫЕ ENDPOINTS (БЕЗ токена) ==========
 
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/v3/api-docs/**",
+                                "/api-docs/**",
+                                "/swagger-resources/**",
+                                "/webjars/**"
+                        ).permitAll()
+
                         // Регистрация и вход
                         .requestMatchers(
                                 "/auth/signUp",

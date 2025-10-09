@@ -14,11 +14,13 @@ import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.repository.ApiKeyRepository;
 import ru.platik777.backauth.repository.UserRepository;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -61,7 +63,7 @@ public class ApiKeyService {
      * @throws ApiKeyException если создание не удалось
      */
     @Transactional
-    public ApiKeyResponse createApiKey(Integer userId, String name, String expireAt) {
+    public ApiKeyResponse createApiKey(UUID userId, String name, String expireAt) {
         log.debug("Creating API key for userId: {}, name: {}", userId, name);
 
         validateUserId(userId);
@@ -90,7 +92,7 @@ public class ApiKeyService {
             ApiKey apiKey = new ApiKey();
             apiKey.setApiKey(apiKeyToken);
             apiKey.setUser(user);
-            apiKey.setExpireAt(expireAtDateTime);
+            apiKey.setExpireAt(Instant.from(expireAtDateTime));
             apiKey.setName(name.trim());
             apiKey.setIsDeleted(false);
 
@@ -116,7 +118,7 @@ public class ApiKeyService {
      * @throws ApiKeyException если ключ не найден
      */
     @Transactional
-    public StatusResponse deleteApiKey(Integer userId, String apiKey) {
+    public StatusResponse deleteApiKey(UUID userId, String apiKey) {
         log.debug("Deleting API key for userId: {}", userId);
 
         validateUserId(userId);
@@ -152,7 +154,7 @@ public class ApiKeyService {
      * @return Список активных API ключей
      */
     @Transactional(readOnly = true)
-    public List<ApiKeyResponse> getApiKeys(Integer userId) {
+    public List<ApiKeyResponse> getApiKeys(UUID userId) {
         log.debug("Getting API keys for userId: {}", userId);
 
         validateUserId(userId);
@@ -190,7 +192,7 @@ public class ApiKeyService {
             throw new ApiKeyException("API key cannot be empty", "apiKey");
         }
 
-        Integer userId;
+        UUID userId;
 
         try {
             // Парсинг токена и получение userId
@@ -238,9 +240,9 @@ public class ApiKeyService {
     /**
      * Валидация userId
      */
-    private void validateUserId(Integer userId) {
-        if (userId == null || userId <= 0) {
-            throw new ApiKeyException("Invalid userId: " + userId, "userId");
+    private void validateUserId(UUID userId) {
+        if (userId == null) {
+            throw new ApiKeyException("Invalid userId", "userId");
         }
     }
 

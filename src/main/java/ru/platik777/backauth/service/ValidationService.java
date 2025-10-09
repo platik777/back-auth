@@ -1,13 +1,13 @@
 package ru.platik777.backauth.service;
 
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import ru.platik777.backauth.entity.UserData;
-import ru.platik777.backauth.entity.Company;
+import ru.platik777.backauth.entity.Tenant;
 import ru.platik777.backauth.entity.User;
-import ru.platik777.backauth.repository.UserDataRepository;
+import ru.platik777.backauth.entity.types.AccountType;
 import ru.platik777.backauth.repository.UserRepository;
 
 import java.util.regex.Pattern;
@@ -24,7 +24,6 @@ import java.util.regex.Pattern;
 public class ValidationService {
 
     private final UserRepository userRepository;
-    private final UserDataRepository userDataRepository;
     private final PasswordService passwordService;
 
     // Регулярные выражения для валидации
@@ -42,10 +41,10 @@ public class ValidationService {
      * ВАЖНО: Этот метод изменяет объекты (нормализует данные)
      *
      * @param user Пользователь (будет изменен)
-     * @param company Компания (может быть null)
+     * @param tenant Компания (может быть null)
      * @throws ValidationException если валидация не прошла
      */
-    public void validateSignUp(User user, Company company) {
+    public void validateSignUp(User user, Tenant tenant) {
         log.debug("Starting sign-up validation for login: {}", user.getLogin());
 
         // Нормализация данных (приведение к нижнему регистру)
@@ -55,7 +54,7 @@ public class ValidationService {
         // Установка дефолтного типа аккаунта
         // Go: if u.AccountType == "" { u.AccountType = "individual" }
         if (user.getAccountType() == null) {
-            user.setAccountType(User.AccountType.INDIVIDUAL);
+            user.setAccountType(AccountType.INDIVIDUAL);
             log.debug("Set default account type: INDIVIDUAL");
         }
 
@@ -64,49 +63,9 @@ public class ValidationService {
 
         // Валидация по типам аккаунтов
         // Go: switch u.AccountType
-        validateByAccountType(user, company);
+        validateByAccountType(user, tenant);
 
         log.debug("Sign-up validation completed successfully");
-    }
-
-    /**
-     * Валидация при обновлении пользователя
-     * Go: часть метода EditUser в auth.go
-     *
-     * @param newUserData Новые данные (транзиентные поля из UserData)
-     * @param oldUserData Старые данные из БД
-     */
-    public void validateUserUpdate(UserData newUserData, UserData oldUserData) {
-        log.debug("Validating user update");
-
-        // Проверка и валидация телефона
-        if (isFieldChanged(newUserData.getPhone(), oldUserData.getPhone())) {
-            validatePhone(newUserData.getPhone());
-
-            if (!userDataRepository.isPhoneUnique(newUserData.getPhone())) {
-                throw new ValidationException("Phone is already in use", "phone");
-            }
-        }
-
-        // Проверка и валидация email
-        if (isFieldChanged(newUserData.getEmail(), oldUserData.getEmail())) {
-            validateEmail(newUserData.getEmail());
-
-            if (!userDataRepository.isEmailUnique(newUserData.getEmail())) {
-                throw new ValidationException("Email is already in use", "email");
-            }
-        }
-
-        // Проверка и валидация логина
-        if (isFieldChanged(newUserData.getLogin(), oldUserData.getLogin())) {
-            validateLogin(newUserData.getLogin());
-
-            if (userRepository.existsByLoginIgnoreCase(newUserData.getLogin())) {
-                throw new ValidationException("Login is already in use", "login");
-            }
-        }
-
-        log.debug("User update validation completed successfully");
     }
 
     /**
@@ -172,25 +131,24 @@ public class ValidationService {
         log.debug("Checking uniqueness for field: {}", field);
 
         // Валидация значения
-        switch (field.toLowerCase()) {
-            case "phone":
+        return switch (field.toLowerCase()) {
+            case "phone" -> {
                 validatePhone(value);
-                return userDataRepository.isPhoneUnique(value);
-
-            case "email":
+                yield !userRepository.existsByPhone(value);
+            }
+            case "email" -> {
                 validateEmail(value);
-                return userDataRepository.isEmailUnique(value);
-
-            case "login":
+                yield !userRepository.existsByEmail(value);
+            }
+            case "login" -> {
                 validateLogin(value);
-                return !userRepository.existsByLoginIgnoreCase(value);
-
-            default:
-                throw new ValidationException(
-                        "Unknown field type for uniqueness check: " + field,
-                        field
-                );
-        }
+                yield !userRepository.existsByLoginIgnoreCase(value);
+            }
+            default -> throw new ValidationException(
+                    "Unknown field type for uniqueness check: " + field,
+                    field
+            );
+        };
     }
 
     // ==================== FIELD VALIDATORS ====================
@@ -326,7 +284,6 @@ public class ValidationService {
         validateLogin(user.getLogin());
         validateEmail(user.getEmail());
         validatePhone(user.getPhone());
-        validateUserName(user.getUserName());
 
         // ВАЖНО: Пароль НЕ валидируется здесь!
         // Он должен быть УЖЕ захеширован до вызова валидации
@@ -343,11 +300,11 @@ public class ValidationService {
             throw new ValidationException("Login is already in use", "login");
         }
 
-        if (!userDataRepository.isEmailUnique(user.getEmail())) {
+        if (userRepository.existsByEmail(user.getEmail())) {
             throw new ValidationException("Email is already in use", "email");
         }
 
-        if (!userDataRepository.isPhoneUnique(user.getPhone())) {
+        if (userRepository.existsByPhone(user.getPhone())) {
             throw new ValidationException("Phone is already in use", "phone");
         }
 
@@ -361,7 +318,7 @@ public class ValidationService {
      * Валидация по типам аккаунтов
      * Go: switch u.AccountType в signUpValidation
      */
-    private void validateByAccountType(User user, Company company) {
+    private void validateByAccountType(User user, Tenant tenant) {
         switch (user.getAccountType()) {
             case INDIVIDUAL:
                 // Не требует дополнительных проверок
@@ -369,57 +326,57 @@ public class ValidationService {
                 break;
 
             case ENTREPRENEUR:
-                if (company == null) {
+                if (tenant == null) {
                     throw new ValidationException(
                             "Company data cannot be null for ENTREPRENEUR account type",
                             "company"
                     );
                 }
-                validateGeneralCompanyFields(company);
-                validateNotEmpty(company.getTaxNumber(), "taxNumber", "INN cannot be empty");
-                validateNotEmpty(company.getOgrnip(), "ogrnip", "OGRNIP cannot be empty");
+                validateGeneralCompanyFields(tenant);
+                validateNotEmpty(tenant.getTaxNumber(), "taxNumber", "INN cannot be empty");
+                validateNotEmpty(tenant.getOgrnip(), "ogrnip", "OGRNIP cannot be empty");
                 break;
 
             case COMPANY_RESIDENT:
-                if (company == null) {
+                if (tenant == null) {
                     throw new ValidationException(
                             "Company data cannot be null for COMPANY_RESIDENT account type",
                             "company"
                     );
                 }
-                validateGeneralCompanyFields(company);
-                validateNotEmpty(company.getTaxNumber(), "taxNumber", "INN cannot be empty");
-                validateNotEmpty(company.getOgrn(), "ogrn", "OGRN cannot be empty");
-                validateNotEmpty(company.getKpp(), "kpp", "KPP cannot be empty");
+                validateGeneralCompanyFields(tenant);
+                validateNotEmpty(tenant.getTaxNumber(), "taxNumber", "INN cannot be empty");
+                validateNotEmpty(tenant.getOgrn(), "ogrn", "OGRN cannot be empty");
+                validateNotEmpty(tenant.getKpp(), "kpp", "KPP cannot be empty");
                 break;
 
             case COMPANY_NON_RESIDENT:
-                if (company == null) {
+                if (tenant == null) {
                     throw new ValidationException(
                             "Company data cannot be null for COMPANY_NON_RESIDENT account type",
                             "company"
                     );
                 }
-                validateGeneralCompanyFields(company);
-                validateNotEmpty(company.getKio(), "kio", "KIO cannot be empty");
-                validateNotEmpty(company.getOgrn(), "ogrn", "OGRN cannot be empty");
-                validateNotEmpty(company.getKpp(), "kpp", "KPP cannot be empty");
+                validateGeneralCompanyFields(tenant);
+                validateNotEmpty(tenant.getKio(), "kio", "KIO cannot be empty");
+                validateNotEmpty(tenant.getOgrn(), "ogrn", "OGRN cannot be empty");
+                validateNotEmpty(tenant.getKpp(), "kpp", "KPP cannot be empty");
                 break;
 
             case EDUCATIONAL_UNIT:
-                if (company == null) {
+                if (tenant == null) {
                     throw new ValidationException(
                             "Company data cannot be null for EDUCATIONAL_UNIT account type",
                             "company"
                     );
                 }
-                validateGeneralCompanyFields(company);
-                validateNotEmpty(company.getTaxNumber(), "taxNumber", "INN cannot be empty");
-                validateNotEmpty(company.getOgrn(), "ogrn", "OGRN cannot be empty");
-                validateNotEmpty(company.getKpp(), "kpp", "KPP cannot be empty");
-                validateNotEmpty(company.getLicenseNumber(), "licenseNumber",
+                validateGeneralCompanyFields(tenant);
+                validateNotEmpty(tenant.getTaxNumber(), "taxNumber", "INN cannot be empty");
+                validateNotEmpty(tenant.getOgrn(), "ogrn", "OGRN cannot be empty");
+                validateNotEmpty(tenant.getKpp(), "kpp", "KPP cannot be empty");
+                validateNotEmpty(tenant.getLicenseNumber(), "licenseNumber",
                         "License number cannot be empty");
-                validateNotEmpty(company.getLicenseIssueDate(), "licenseIssueDate",
+                validateNotEmpty(String.valueOf(tenant.getLicenseIssueDate()), "licenseIssueDate",
                         "License issue date cannot be empty");
                 break;
 
@@ -435,29 +392,29 @@ public class ValidationService {
      * Валидация общих полей компании
      * Go: func validationGeneralFileldCompany(logger go_logger.Logger, c *models.Company)
      */
-    private void validateGeneralCompanyFields(Company company) {
-        validateNotEmpty(company.getFullTitle(), "fullTitle",
+    private void validateGeneralCompanyFields(Tenant tenant) {
+        validateNotEmpty(tenant.getFullTitle(), "fullTitle",
                 "Full company name cannot be empty");
 
-        if (!StringUtils.hasText(company.getCountry())) {
-            company.setCountry("russia");
+        if (!StringUtils.hasText(tenant.getCountry())) {
+            tenant.setCountry("russia");
         }
 
-        validateNotEmpty(company.getLegalAddress(), "legalAddress",
+        validateNotEmpty(tenant.getLegalAddress(), "legalAddress",
                 "Legal address cannot be empty");
-        validateNotEmpty(company.getPostAddress(), "postAddress",
+        validateNotEmpty(tenant.getPostAddress(), "postAddress",
                 "Postal address cannot be empty");
-        validateNotEmpty(company.getAccountNumber(), "accountNumber",
+        validateNotEmpty(tenant.getAccountNumber(), "accountNumber",
                 "Current account cannot be empty");
-        validateNotEmpty(company.getBankName(), "bankName",
+        validateNotEmpty(tenant.getBankName(), "bankName",
                 "Bank name cannot be empty");
-        validateNotEmpty(company.getBic(), "bic",
+        validateNotEmpty(tenant.getBic(), "bic",
                 "BIC cannot be empty");
-        validateNotEmpty(company.getTaxBank(), "taxBank",
+        validateNotEmpty(tenant.getTaxBank(), "taxBank",
                 "Bank INN cannot be empty");
-        validateNotEmpty(company.getKppBank(), "kppBank",
+        validateNotEmpty(tenant.getKppBank(), "kppBank",
                 "Bank KPP cannot be empty");
-        validateNotEmpty(company.getCorrespondentAccount(), "correspondentAccount",
+        validateNotEmpty(tenant.getCorrespondentAccount(), "correspondentAccount",
                 "Correspondent account cannot be empty");
     }
 
@@ -486,6 +443,7 @@ public class ValidationService {
     /**
      * Исключение валидации
      */
+    @Getter
     public static class ValidationException extends RuntimeException {
         private final String fieldName;
 
@@ -494,8 +452,5 @@ public class ValidationService {
             this.fieldName = fieldName;
         }
 
-        public String getFieldName() {
-            return fieldName;
-        }
     }
 }

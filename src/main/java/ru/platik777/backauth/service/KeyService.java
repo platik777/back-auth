@@ -19,19 +19,19 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class KeyService {
     // Константы префиксов из конфигурации (соответствуют models.Const* в Go)
-    @Value("${app.jwt.constants.app-access-prefix:app_access_key_}")
+    @Value("${app.jwt.constants.app-access-prefix}")
     private String constSigningAppKeyAccess;
 
-    @Value("${app.jwt.constants.app-refresh-prefix:app_refresh_key_}")
+    @Value("${app.jwt.constants.app-refresh-prefix}")
     private String constSigningAppKeyRefresh;
 
-    @Value("${app.jwt.constants.base-access-prefix:base_access_key_}")
+    @Value("${app.jwt.constants.base-access-prefix}")
     private String constSigningBaseKeyAccess;
 
-    @Value("${app.jwt.constants.base-refresh-prefix:base_refresh_key_}")
+    @Value("${app.jwt.constants.base-refresh-prefix}")
     private String constSigningBaseKeyRefresh;
 
-    @Value("${app.jwt.constants.reset-password-prefix:reset_password_key_}")
+    @Value("${app.jwt.constants.reset-password-prefix}")
     private String constSigningKeyResetPassword;
 
     @Value("${app.jwt.constants.salt}")

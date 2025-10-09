@@ -14,6 +14,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SignUpResponse {
     private UserResponse user;
-    private StudentResponse student;
     private CompanyResponse company;
 }

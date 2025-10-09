@@ -5,26 +5,17 @@ import lombok.Data;
 @Data
 public class SignUpRequest {
     private UserDto user;
-    private StudentDto student;
     private CompanyDto company;
     private String locale;
 
     @Data
     public static class UserDto {
+        private String name;
         private String login;
         private String password;
         private String email;
-        private String userName;
         private String phone;
         private String accountType;
-    }
-
-    @Data
-    public static class StudentDto {
-        private Integer startYear;
-        private Integer endYear;
-        private String studentId;
-        private String educationalInstitutionsUuid;
     }
 
     @Data
