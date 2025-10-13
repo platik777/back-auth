@@ -4,23 +4,13 @@ import java.lang.annotation.*;
 
 /**
  * Аннотация для автоматического извлечения userId из JWT токена
- *
+ * <p>
  * Использование:
  * <pre>
  * {@code
  * @GetMapping("/api/v1/user")
  * public ResponseEntity<UserResponse> getUser(@CurrentUser Integer userId) {
  *     return ResponseEntity.ok(authService.getUser(userId));
- * }
- * }
- * </pre>
- *
- * Вместо:
- * <pre>
- * {@code
- * @GetMapping("/api/v1/user")
- * public ResponseEntity<UserResponse> getUser(@RequestHeader("userId") Integer userId) {
- *     // Небезопасно! userId можно подделать
  * }
  * }
  * </pre>

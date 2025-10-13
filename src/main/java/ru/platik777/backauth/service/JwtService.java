@@ -6,6 +6,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.dto.response.TokenResponse;
+import ru.platik777.backauth.entity.types.TokenType;
 
 import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
@@ -19,10 +21,6 @@ import java.util.UUID;
 
 /**
  * Сервис работы с JWT токенами
- * Соответствует jwt.go
- *
- * ВАЖНО: Использует JJWT 0.11.x/0.12.x API
- * Время жизни токенов берется из конфигурации
  */
 @Slf4j
 @Service
@@ -32,12 +30,9 @@ public class JwtService {
     private final KeyService keyService;
     private final TokenBlacklistService tokenBlacklistService;
 
-    // Время жизни токенов из конфигурации (в миллисекундах)
-    // Go: const TimeAToken = 10 * time.Minute
     @Value("${app.jwt.app.access.expiration}")
     private long appAccessTokenExpiration;
 
-    // Go: const TimeRToken = 8 * time.Hour
     @Value("${app.jwt.app.refresh.expiration}")
     private long appRefreshTokenExpiration;
 
@@ -52,12 +47,11 @@ public class JwtService {
 
     /**
      * Создание всех типов токенов (App + Base)
-     * Go: используется в RefreshAppTokenByBaseToken
      *
      * @param userId ID пользователя
      * @return Map с 4 токенами
      */
-    public TokensResponse createAllTokens(UUID userId) {
+    public TokenResponse createAllTokens(UUID userId) {
         log.debug("Creating all tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -65,7 +59,7 @@ public class JwtService {
         Map<String, String> appTokens = createAppTokens(userId);
         Map<String, String> baseTokens = createBaseTokens(userId);
 
-        return new TokensResponse(
+        return new TokenResponse(
                 appTokens.get("accessToken"),
                 appTokens.get("refreshToken"),
                 baseTokens.get("accessToken"),
@@ -75,8 +69,6 @@ public class JwtService {
 
     /**
      * Создание App Access и Refresh токенов
-     * Go: func createAppAccessAndRefreshTokens(logger go_logger.Logger, userId int,
-     *                                          signingAppKeyAccess, signingAppKeyRefresh string)
      *
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
@@ -110,8 +102,6 @@ public class JwtService {
 
     /**
      * Создание Base Access и Refresh токенов
-     * Go: func createBaseAccessAndRefreshTokens(logger go_logger.Logger, userId int,
-     *                                           signingBaseKeyAccess, signingBaseKeyRefresh string)
      *
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
@@ -145,8 +135,6 @@ public class JwtService {
 
     /**
      * Создание токена для сброса пароля
-     * Go: func createTokenForResetPassword(logger go_logger.Logger, userId int,
-     *                                      signingKeyResetPassword string)
      *
      * @param userId ID пользователя
      * @return Reset password токен
@@ -169,8 +157,6 @@ public class JwtService {
 
     /**
      * Создание API ключа с кастомным временем истечения
-     * Go: func createApiKeyToken(logger go_logger.Logger, userId int,
-     *                            timeExpiration time.Time)
      *
      * @param userId ID пользователя
      * @param expireAt Дата истечения
@@ -210,7 +196,6 @@ public class JwtService {
 
     /**
      * Парсинг токена и получение userId
-     * Go: func parseToken(token, key string) (userId int, err error)
      *
      * @param token JWT токен
      * @param signingKey Ключ для валидации
@@ -237,7 +222,6 @@ public class JwtService {
 
             String userId = claims.get("userId", String.class);
 
-            // Go: if claims.UserId == 0
             if (userId == null) {
                 throw new JwtException("UserId is empty in token");
             }
@@ -286,8 +270,6 @@ public class JwtService {
             log.debug("Token added to blacklist");
         }
     }
-
-    // ==================== PRIVATE METHODS ====================
 
     /**
      * Базовый метод создания токена
@@ -370,43 +352,6 @@ public class JwtService {
     private void validateUserId(UUID userId) {
         if (userId == null) {
             throw new IllegalArgumentException("Invalid userId");
-        }
-    }
-
-    // ==================== INNER CLASSES ====================
-
-    /**
-     * Типы токенов для отладки и логирования
-     */
-    private enum TokenType {
-        APP_ACCESS,
-        APP_REFRESH,
-        BASE_ACCESS,
-        BASE_REFRESH,
-        RESET_PASSWORD,
-        API_KEY
-    }
-
-    /**
-     * DTO для всех токенов
-     */
-    public record TokensResponse(
-            String accessAppToken,
-            String refreshAppToken,
-            String accessBaseToken,
-            String refreshBaseToken
-    ) {}
-
-    /**
-     * Кастомное исключение для JWT ошибок
-     */
-    public static class JwtException extends RuntimeException {
-        public JwtException(String message) {
-            super(message);
-        }
-
-        public JwtException(String message, Throwable cause) {
-            super(message, cause);
         }
     }
 }

@@ -14,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.platik777.backauth.entity.types.TokenType;
 import ru.platik777.backauth.service.JwtService;
 import ru.platik777.backauth.service.KeyService;
 
@@ -157,7 +158,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         return switch (path) {
             case "/auth/isBaseAuthorization" -> TokenType.BASE_ACCESS;
-            // Refresh токены
             case "/auth/refreshToken" -> TokenType.APP_REFRESH;
             case "/auth/refreshTokenByBaseToken", "/auth/refreshBaseToken" -> TokenType.BASE_REFRESH;
             default ->
@@ -182,8 +182,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return jwtService.parseToken(token, signingKey);
 
         } catch (JwtService.JwtException e) {
-            log.debug("Token validation failed: tokenType={}, error={}",
-                    tokenType, e.getMessage());
+            log.debug("Token validation failed: tokenType={}, error={}", tokenType, e.getMessage());
             throw e; // Пробрасываем дальше для обработки
         }
     }
@@ -205,15 +204,5 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         errorDetails.put("message", message);
 
         objectMapper.writeValue(response.getWriter(), errorDetails);
-    }
-
-    /**
-     * Типы токенов в системе
-     */
-    private enum TokenType {
-        APP_ACCESS,     // Для основных операций
-        APP_REFRESH,    // Для обновления App токенов
-        BASE_ACCESS,    // Для базовой информации
-        BASE_REFRESH    // Для обновления Base токенов
     }
 }

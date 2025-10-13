@@ -11,7 +11,6 @@ import java.security.NoSuchAlgorithmException;
 
 /**
  * Сервис работы с паролями
- * Соответствует части service.go (generatePasswordHash)
  */
 @Slf4j
 @Service
@@ -22,28 +21,17 @@ public class PasswordService {
 
     /**
      * Генерация хеша пароля
-     * Go: func generatePasswordHash(logger go_logger.Logger, password string)
-     *
-     * ВАЖНО: Алгоритм должен точно соответствовать Go версии:
-     * 1. Хешируем пароль SHA-1
-     * 2. Добавляем соль К БАЙТАМ хеша (не к hex строке!)
-     * 3. Конвертируем результат в hex
      */
     public String generatePasswordHash(String password) {
         try {
-            // Получаем соль из БД (аналог models.Salt в Go)
-
             // Создаем SHA-1 хеш
             MessageDigest digest = MessageDigest.getInstance("SHA-1");
 
             // Хешируем пароль
             digest.update(password.getBytes(StandardCharsets.UTF_8));
 
-            // КРИТИЧНО: Добавляем соль к байтам хеша, а не к hex строке!
-            // В Go: hash.Sum([]byte(models.Salt))
             byte[] finalHash = digest.digest(salt.getBytes(StandardCharsets.UTF_8));
 
-            // Конвертируем в hex (аналог fmt.Sprintf("%x", ...))
             return bytesToHex(finalHash);
 
         } catch (NoSuchAlgorithmException e) {
@@ -71,7 +59,6 @@ public class PasswordService {
 
     /**
      * Конвертация байтов в hex строку
-     * Аналог fmt.Sprintf("%x", bytes) в Go
      */
     private String bytesToHex(byte[] bytes) {
         StringBuilder result = new StringBuilder();

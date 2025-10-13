@@ -30,6 +30,4 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
     @Query("UPDATE ApiKey ak SET ak.isDeleted = true " +
             "WHERE ak.apiKey = :apiKey AND ak.user.id = :userId AND ak.isDeleted = false")
     int softDeleteByApiKeyAndUserId(@Param("apiKey") String apiKey, @Param("userId") UUID userId);
-
-    // AddApiKey реализуется через save() из JpaRepository
 }

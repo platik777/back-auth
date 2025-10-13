@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 public class EmailMasker {
 
     /**
-     * Маскирование email для логирования
+     * Маскирование email для логирования.
      * Пример: john.doe@example.com -> j***e@e***e.com
      *
      * @param email email для маскирования

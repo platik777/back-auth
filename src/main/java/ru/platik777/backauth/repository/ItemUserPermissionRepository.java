@@ -14,29 +14,134 @@ import java.util.UUID;
 public interface ItemUserPermissionRepository extends JpaRepository<ItemUserPermission, UUID> {
 
     /**
-     * Найти все права доступа для пользователя
+     * Получить все проекты, доступные пользователю на чтение (как минимум READ)
+     * Используется нативный SQL для битовых операций
      */
-    List<ItemUserPermission> findByUserId(UUID userId);
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.project_id IS NOT NULL " +
+            "AND (p.permissions & 1) = 1",
+            nativeQuery = true)
+    List<ItemUserPermission> findReadableProjectsByUserId(@Param("userId") UUID userId);
 
     /**
-     * Найти права доступа пользователя к проекту
+     * Получить все папки, доступные пользователю на чтение
+     */
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.folder_id IS NOT NULL " +
+            "AND (p.permissions & 1) = 1",
+            nativeQuery = true)
+    List<ItemUserPermission> findReadableFoldersByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Получить все файлы, доступные пользователю на чтение
+     */
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.file_id IS NOT NULL " +
+            "AND (p.permissions & 1) = 1",
+            nativeQuery = true)
+    List<ItemUserPermission> findReadableFilesByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Получить все блоки, доступные пользователю на чтение
+     */
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.block_id IS NOT NULL " +
+            "AND (p.permissions & 1) = 1",
+            nativeQuery = true)
+    List<ItemUserPermission> findReadableBlocksByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Получить все элементы всех типов, доступные пользователю на чтение
+     */
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND (p.permissions & 1) = 1",
+            nativeQuery = true)
+    List<ItemUserPermission> findAllReadableItemsByUserId(@Param("userId") UUID userId);
+
+    /**
+     * Найти права доступа пользователя к конкретному проекту
      */
     Optional<ItemUserPermission> findByUserIdAndProjectId(UUID userId, UUID projectId);
 
     /**
-     * Найти права доступа пользователя к папке
+     * Найти права доступа пользователя к конкретной папке
      */
     Optional<ItemUserPermission> findByUserIdAndFolderId(UUID userId, UUID folderId);
 
     /**
-     * Найти права доступа пользователя к файлу
+     * Найти права доступа пользователя к конкретному файлу
      */
     Optional<ItemUserPermission> findByUserIdAndFileId(UUID userId, UUID fileId);
 
     /**
-     * Найти права доступа пользователя к блоку
+     * Найти права доступа пользователя к конкретному блоку
      */
     Optional<ItemUserPermission> findByUserIdAndBlockId(UUID userId, UUID blockId);
+
+    /**
+     * Проверить наличие конкретных прав доступа к проекту
+     * @param requiredPermissions битовая маска требуемых прав (например, 3 для READ+WRITE)
+     */
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END " +
+            "FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.project_id = :projectId " +
+            "AND (p.permissions & :requiredPermissions) = :requiredPermissions",
+            nativeQuery = true)
+    boolean hasProjectPermissions(@Param("userId") UUID userId,
+                                  @Param("projectId") UUID projectId,
+                                  @Param("requiredPermissions") short requiredPermissions);
+
+    /**
+     * Проверить наличие конкретных прав доступа к папке
+     */
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END " +
+            "FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.folder_id = :folderId " +
+            "AND (p.permissions & :requiredPermissions) = :requiredPermissions",
+            nativeQuery = true)
+    boolean hasFolderPermissions(@Param("userId") UUID userId,
+                                 @Param("folderId") UUID folderId,
+                                 @Param("requiredPermissions") short requiredPermissions);
+
+    /**
+     * Проверить наличие конкретных прав доступа к файлу
+     */
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END " +
+            "FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.file_id = :fileId " +
+            "AND (p.permissions & :requiredPermissions) = :requiredPermissions",
+            nativeQuery = true)
+    boolean hasFilePermissions(@Param("userId") UUID userId,
+                               @Param("fileId") UUID fileId,
+                               @Param("requiredPermissions") short requiredPermissions);
+
+    /**
+     * Проверить наличие конкретных прав доступа к блоку
+     */
+    @Query(value = "SELECT CASE WHEN COUNT(*) > 0 THEN true ELSE false END " +
+            "FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.block_id = :blockId " +
+            "AND (p.permissions & :requiredPermissions) = :requiredPermissions",
+            nativeQuery = true)
+    boolean hasBlockPermissions(@Param("userId") UUID userId,
+                                @Param("blockId") UUID blockId,
+                                @Param("requiredPermissions") short requiredPermissions);
+
+    // ==================== ДОПОЛНИТЕЛЬНЫЕ МЕТОДЫ ====================
+
+    /**
+     * Найти все права доступа для пользователя
+     */
+    List<ItemUserPermission> findByUserId(UUID userId);
 
     /**
      * Найти все права доступа к проекту
@@ -59,55 +164,14 @@ public interface ItemUserPermissionRepository extends JpaRepository<ItemUserPerm
     List<ItemUserPermission> findByBlockId(UUID blockId);
 
     /**
-     * Проверить существование прав доступа пользователя к проекту
-     */
-    boolean existsByUserIdAndProjectId(UUID userId, UUID projectId);
-
-    /**
-     * Проверить существование прав доступа пользователя к папке
-     */
-    boolean existsByUserIdAndFolderId(UUID userId, UUID folderId);
-
-    /**
-     * Проверить существование прав доступа пользователя к файлу
-     */
-    boolean existsByUserIdAndFileId(UUID userId, UUID fileId);
-
-    /**
-     * Проверить существование прав доступа пользователя к блоку
-     */
-    boolean existsByUserIdAndBlockId(UUID userId, UUID blockId);
-
-    /**
-     * Удалить все права доступа пользователя
-     */
-    void deleteByUserId(UUID userId);
-
-    /**
-     * Удалить все права доступа к проекту
-     */
-    void deleteByProjectId(UUID projectId);
-
-    /**
-     * Удалить все права доступа к папке
-     */
-    void deleteByFolderId(UUID folderId);
-
-    /**
-     * Удалить все права доступа к файлу
-     */
-    void deleteByFileId(UUID fileId);
-
-    /**
-     * Удалить все права доступа к блоку
-     */
-    void deleteByBlockId(UUID blockId);
-
-    /**
      * Найти все элементы (любого типа) пользователя в пределах тенанта
      */
-    @Query("SELECT p FROM ItemUserPermission p WHERE p.user.id = :userId AND p.tenantId = :tenantId")
-    List<ItemUserPermission> findByUserIdAndTenantId(@Param("userId") UUID userId, @Param("tenantId") String tenantId);
+    @Query(value = "SELECT * FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.tenant_id = :tenantId",
+            nativeQuery = true)
+    List<ItemUserPermission> findByUserIdAndTenantId(@Param("userId") UUID userId,
+                                                     @Param("tenantId") String tenantId);
 
     /**
      * Подсчитать количество пользователей с доступом к проекту
@@ -117,6 +181,9 @@ public interface ItemUserPermissionRepository extends JpaRepository<ItemUserPerm
     /**
      * Подсчитать количество проектов, к которым у пользователя есть доступ
      */
-    @Query("SELECT COUNT(p) FROM ItemUserPermission p WHERE p.user.id = :userId AND p.project IS NOT NULL")
+    @Query(value = "SELECT COUNT(*) FROM item_user_permission p " +
+            "WHERE p.user_id = :userId " +
+            "AND p.project_id IS NOT NULL",
+            nativeQuery = true)
     long countUserProjects(@Param("userId") UUID userId);
 }

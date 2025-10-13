@@ -5,8 +5,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.dto.monitoring.MonitoringReport;
+import ru.platik777.backauth.dto.monitoring.SystemMetrics;
+import ru.platik777.backauth.dto.monitoring.TokenStatistics;
+import ru.platik777.backauth.dto.monitoring.UserStatistics;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.entity.types.AccountType;
+import ru.platik777.backauth.exception.MonitoringException;
 import ru.platik777.backauth.repository.UserRepository;
 
 import java.lang.management.ManagementFactory;
@@ -19,7 +24,7 @@ import java.util.Map;
 
 /**
  * Сервис мониторинга состояния системы
- *
+ * <p/>
  * Предоставляет метрики для:
  * - Состояния сервисов
  * - Статистики токенов
@@ -39,7 +44,6 @@ public class MonitoringService implements HealthIndicator {
 
     /**
      * Spring Boot Health Check
-     * Endpoint: /actuator/health
      */
     @Override
     public Health health() {
@@ -180,61 +184,6 @@ public class MonitoringService implements HealthIndicator {
             return String.format("%dm %ds", minutes, seconds);
         } else {
             return String.format("%ds", seconds);
-        }
-    }
-
-    // ==================== DTO CLASSES ====================
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    public static class SystemMetrics {
-        private LocalDateTime startTime;
-        private String uptime;
-        private Long uptimeSeconds;
-        private Long heapUsedMB;
-        private Long heapMaxMB;
-        private Double heapUsagePercent;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    public static class TokenStatistics {
-        private Integer blacklistedTokens;
-        private Long activeBlacklistedTokens;
-        private Long expiredBlacklistedTokens;
-        private Long tokenLifetimeMinutes;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    public static class UserStatistics {
-        private Long totalUsers;
-        private Map<String, Long> accountTypeDistribution;
-    }
-
-    @lombok.Data
-    @lombok.Builder
-    @lombok.NoArgsConstructor
-    @lombok.AllArgsConstructor
-    public static class MonitoringReport {
-        private LocalDateTime timestamp;
-        private SystemMetrics system;
-        private TokenStatistics tokens;
-        private UserStatistics users;
-        private Map<String, String> services;
-    }
-
-    // ==================== CUSTOM EXCEPTIONS ====================
-
-    public static class MonitoringException extends RuntimeException {
-        public MonitoringException(String message, Throwable cause) {
-            super(message, cause);
         }
     }
 }

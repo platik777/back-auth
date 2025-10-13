@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.dto.BlacklistStats;
 
 import java.time.LocalDateTime;
 import java.util.Map;
@@ -12,35 +13,27 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Сервис черного списка токенов
- * Соответствует TokenBlacklist из jwt.go
- *
  * Используется для инвалидации токенов при:
  * - Сбросе пароля (токен сброса пароля становится одноразовым)
  * - Выходе из системы (будущая функциональность)
- *
- * Go: type TokenBlacklist struct { ... }
  */
 @Slf4j
 @Service
 public class TokenBlacklistService {
 
     // Map для хранения токенов: token -> время добавления
-    // Go: tokenBlackList map[string]time.Time
     private final Map<String, LocalDateTime> tokenBlacklist = new ConcurrentHashMap<>();
 
     // Время жизни access токена из конфигурации (в миллисекундах)
-    // Go: models.TimeAToken = 10 * time.Minute
     @Value("${app.jwt.app.access.expiration:600000}")
     private long accessTokenExpirationMs;
 
     // Интервал очистки из конфигурации (в миллисекундах)
-    // Go: models.CleanUpInterval
     @Value("${app.jwt.cleanup-interval:600000}")
     private long cleanupIntervalMs;
 
     /**
      * Инициализация сервиса
-     * Go: func NewTokenBlacklist(cleanupInterval time.Duration)
      */
     @PostConstruct
     public void initialize() {
@@ -57,7 +50,6 @@ public class TokenBlacklistService {
 
     /**
      * Добавление токена в черный список
-     * Go: func (a *TokenBlacklist) AddToken(token string)
      *
      * @param token JWT токен для инвалидации
      */
@@ -76,7 +68,6 @@ public class TokenBlacklistService {
 
     /**
      * Проверка нахождения токена в черном списке
-     * Go: func (a *TokenBlacklist) IsBlacklisted(token string) bool
      *
      * @param token JWT токен для проверки
      * @return true если токен в черном списке
@@ -98,19 +89,12 @@ public class TokenBlacklistService {
 
     /**
      * Фоновая очистка устаревших токенов
-     * Go: func (a *TokenBlacklist) CleanUp()
-     *
-     * ВАЖНО: В Go используется TimeAToken (10 минут) для определения устаревших токенов
-     * Комментарий из Go: "Из-за того, что используется TimeAToken в создании токена,
-     * ту же константу использую здесь"
-     *
      * Выполняется с интервалом из конфигурации (по умолчанию 10 минут)
      */
     @Scheduled(fixedRateString = "${app.jwt.cleanup-interval:600000}")
     public void cleanUp() {
         try {
             // Вычисляем порог: текущее время - время жизни токена
-            // Go: if time.Since(createdAt) > models.TimeAToken
             LocalDateTime threshold = LocalDateTime.now()
                     .minusNanos(accessTokenExpirationMs * 1_000_000);
 
@@ -178,8 +162,6 @@ public class TokenBlacklistService {
         );
     }
 
-    // ==================== UTILITY METHODS ====================
-
     /**
      * Маскирование токена для логирования
      * Показывает только первые и последние 4 символа
@@ -192,16 +174,4 @@ public class TokenBlacklistService {
         return token.substring(0, 4) + "..." +
                 token.substring(token.length() - 4);
     }
-
-    // ==================== INNER CLASSES ====================
-
-    /**
-     * DTO для статистики черного списка
-     */
-    public record BlacklistStats(
-            int totalTokens,
-            long activeTokens,
-            long expiredTokens,
-            long tokenLifetimeMinutes
-    ) {}
 }

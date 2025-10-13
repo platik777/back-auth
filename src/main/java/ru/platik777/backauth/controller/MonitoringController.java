@@ -6,18 +6,15 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RestController;
+import ru.platik777.backauth.dto.monitoring.MonitoringReport;
+import ru.platik777.backauth.dto.monitoring.SystemMetrics;
+import ru.platik777.backauth.dto.monitoring.TokenStatistics;
+import ru.platik777.backauth.dto.monitoring.UserStatistics;
 import ru.platik777.backauth.dto.response.StatusResponse;
 import ru.platik777.backauth.service.MonitoringService;
 
 /**
  * Контроллер мониторинга системы
- * Соответствует monitor.go endpoints
- *
- * Go routes:
- * - monitorR := r.PathPrefix("/monitor").Subrouter()
- * - monitorR.HandleFunc("/status", h.status).Methods(http.MethodGet)
- * - configR := r.PathPrefix("/config").Subrouter()
- * - configR.HandleFunc("/update", h.updateConfig).Methods(http.MethodPut)
  */
 @Slf4j
 @RestController
@@ -29,7 +26,6 @@ public class MonitoringController {
     /**
      * GET /monitor/status
      * Проверка статуса сервиса
-     * Go: monitorR.HandleFunc("/status", h.status).Methods(http.MethodGet)
      */
     @GetMapping("/monitor/status")
     public ResponseEntity<StatusResponse> getStatus() {
@@ -37,7 +33,7 @@ public class MonitoringController {
 
         // Базовая проверка здоровья
         try {
-            MonitoringService.SystemMetrics metrics = monitoringService.getSystemMetrics();
+            SystemMetrics metrics = monitoringService.getSystemMetrics();
 
             return ResponseEntity.ok(
                     StatusResponse.builder()
@@ -59,8 +55,6 @@ public class MonitoringController {
     /**
      * PUT /config/update
      * Обновление конфигурации
-     * Go: configR.HandleFunc("/update", h.updateConfig).Methods(http.MethodPut)
-     *
      * ПРИМЕЧАНИЕ: В Spring Boot обычно используется Spring Cloud Config
      * или actuator/refresh для перезагрузки конфигурации
      */
@@ -82,17 +76,15 @@ public class MonitoringController {
         );
     }
 
-    // ==================== ДОПОЛНИТЕЛЬНЫЕ ENDPOINTS ДЛЯ МОНИТОРИНГА ====================
-
     /**
      * GET /monitor/metrics
      * Системные метрики (дополнительно)
      */
     @GetMapping("/monitor/metrics")
-    public ResponseEntity<MonitoringService.SystemMetrics> getSystemMetrics() {
+    public ResponseEntity<SystemMetrics> getSystemMetrics() {
         log.debug("System metrics requested");
 
-        MonitoringService.SystemMetrics metrics = monitoringService.getSystemMetrics();
+        SystemMetrics metrics = monitoringService.getSystemMetrics();
 
         return ResponseEntity.ok(metrics);
     }
@@ -102,10 +94,10 @@ public class MonitoringController {
      * Статистика токенов (дополнительно)
      */
     @GetMapping("/monitor/tokens")
-    public ResponseEntity<MonitoringService.TokenStatistics> getTokenStatistics() {
+    public ResponseEntity<TokenStatistics> getTokenStatistics() {
         log.debug("Token statistics requested");
 
-        MonitoringService.TokenStatistics stats = monitoringService.getTokenStatistics();
+        TokenStatistics stats = monitoringService.getTokenStatistics();
 
         return ResponseEntity.ok(stats);
     }
@@ -115,10 +107,10 @@ public class MonitoringController {
      * Статистика пользователей (дополнительно)
      */
     @GetMapping("/monitor/users")
-    public ResponseEntity<MonitoringService.UserStatistics> getUserStatistics() {
+    public ResponseEntity<UserStatistics> getUserStatistics() {
         log.debug("User statistics requested");
 
-        MonitoringService.UserStatistics stats = monitoringService.getUserStatistics();
+        UserStatistics stats = monitoringService.getUserStatistics();
 
         return ResponseEntity.ok(stats);
     }
@@ -128,10 +120,10 @@ public class MonitoringController {
      * Полный отчет о состоянии системы (дополнительно)
      */
     @GetMapping("/monitor/report")
-    public ResponseEntity<MonitoringService.MonitoringReport> getFullReport() {
+    public ResponseEntity<MonitoringReport> getFullReport() {
         log.debug("Full monitoring report requested");
 
-        MonitoringService.MonitoringReport report = monitoringService.getFullReport();
+        MonitoringReport report = monitoringService.getFullReport();
 
         return ResponseEntity.ok(report);
     }

@@ -18,7 +18,4 @@ public interface CompanyRepository extends JpaRepository<Tenant, UUID> {
      * Соответствует методу GetCompaniesOfUser из Go
      */
     List<Tenant> findByOwnerId(UUID ownerId);
-
-    // Методы save(), findById() наследуются от JpaRepository
-    // и соответствуют createCompany, getCompany из Go
 }

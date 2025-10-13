@@ -10,18 +10,14 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import ru.platik777.backauth.exception.EmailSendException;
+import ru.platik777.backauth.exception.EmailTemplateException;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 /**
  * Сервис отправки email
- * Соответствует функциям из smtp пакета Go
- *
- * Go аналоги:
- * - smtp.SendingMessage
- * - smtp.GetBodyMessageForResetPassword
- * - smtp.GetBodyMessageForSendMessageToSupport
  */
 @Slf4j
 // @Service
@@ -31,11 +27,9 @@ public class EmailService {
     private final JavaMailSender mailSender;
     private final ResourceLoader resourceLoader;
 
-    // Sender email берется из spring.mail.username
     @Value("${spring.mail.username}")
     private String senderEmail;
 
-    // Support и product emails из app.smtp
     @Value("${app.smtp.support-email}")
     private String supportEmail;
 
@@ -53,8 +47,6 @@ public class EmailService {
 
     /**
      * Отправка письма для восстановления пароля
-     * Go: func (a *AuthService) ResetPasswordForgot(...)
-     *
      * @param targetEmail Email получателя
      * @param subject Тема письма
      * @param resetPasswordUrl URL для сброса пароля
@@ -66,7 +58,6 @@ public class EmailService {
                                        String login, String locale) {
         log.debug("Preparing reset password email for: {}", targetEmail);
 
-        // Валидация входных данных
         validateEmail(targetEmail, "targetEmail");
         validateNotEmpty(resetPasswordUrl, "resetPasswordUrl");
         validateNotEmpty(subject, "subject");
@@ -89,8 +80,6 @@ public class EmailService {
 
     /**
      * Отправка сообщения в техподдержку
-     * Go: func (a *AuthService) SendMessageToSupport(...)
-     *
      * @param userName Имя отправителя
      * @param email Email отправителя
      * @param message Текст сообщения
@@ -100,13 +89,10 @@ public class EmailService {
                                      String message, String targetSubject) {
         log.debug("Preparing support message from: {} ({})", userName, email);
 
-        // Валидация
         validateNotEmpty(userName, "userName");
         validateEmail(email, "email");
         validateMessage(message);
 
-        // Определение целевого email и темы
-        // Go: switch target_subject
         EmailTarget target = determineEmailTarget(targetSubject);
 
         try {
@@ -121,12 +107,8 @@ public class EmailService {
         }
     }
 
-    // ==================== PRIVATE METHODS ====================
-
     /**
      * Универсальный метод отправки email
-     * Go: func SendingMessage(...)
-     *
      * @param from    Email отправителя
      * @param to      Email получателя
      * @param subject Тема письма
@@ -168,9 +150,6 @@ public class EmailService {
 
     /**
      * Получение HTML тела для восстановления пароля
-     * Go: func GetBodyMessageForResetPassword(...)
-     *
-     * Загружает шаблон из classpath и заменяет плейсхолдеры
      */
     private String getResetPasswordHtmlBody(String resetPasswordUrl,
                                             String login, String locale) {
@@ -194,8 +173,6 @@ public class EmailService {
                     StandardCharsets.UTF_8
             );
 
-            // Замена плейсхолдеров (как в Go шаблонах)
-            // Go: {{.UserName}}, {{.Login}}, {{.ResetPasswordUrl}}
             template = template.replace("{{.Login}}", escapeHtml(login));
             template = template.replace("{{.ResetPasswordUrl}}", resetPasswordUrl);
 
@@ -208,7 +185,6 @@ public class EmailService {
 
     /**
      * Получение HTML тела для сообщения в поддержку
-     * Go: func GetBodyMessageForSendMessageToSupport(...)
      */
     private String getSupportMessageHtmlBody(String userName, String email, String message) {
         String html = "<!DOCTYPE html>" +
@@ -231,7 +207,6 @@ public class EmailService {
 
     /**
      * Определение целевого email и темы на основе типа обращения
-     * Go: switch target_subject в internal.go
      */
     private EmailTarget determineEmailTarget(String targetSubject) {
         if (targetSubject == null) {
@@ -286,7 +261,6 @@ public class EmailService {
 
     /**
      * Валидация сообщения
-     * Go: validationMessage в validations.go
      */
     private void validateMessage(String message) {
         validateNotEmpty(message, "message");
@@ -315,34 +289,8 @@ public class EmailService {
                 .replace("/", "&#x2F;");
     }
 
-    // ==================== INNER CLASSES ====================
-
     /**
      * DTO для хранения информации о целевом email и теме
      */
     private record EmailTarget(String email, String subject) {}
-
-    // ==================== CUSTOM EXCEPTIONS ====================
-
-    /**
-     * Исключение при ошибке отправки email
-     */
-    public static class EmailSendException extends RuntimeException {
-        public EmailSendException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
-
-    /**
-     * Исключение при ошибке загрузки шаблона
-     */
-    public static class EmailTemplateException extends RuntimeException {
-        public EmailTemplateException(String message) {
-            super(message);
-        }
-
-        public EmailTemplateException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }

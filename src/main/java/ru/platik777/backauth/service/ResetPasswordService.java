@@ -9,6 +9,8 @@ import ru.platik777.backauth.dto.response.ResetPasswordCheckResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
 import ru.platik777.backauth.dto.response.UserResponse;
 import ru.platik777.backauth.entity.User;
+import ru.platik777.backauth.exception.CustomJwtException;
+import ru.platik777.backauth.exception.ResetPasswordException;
 import ru.platik777.backauth.repository.UserRepository;
 import ru.platik777.backauth.util.EmailMasker;
 
@@ -16,7 +18,6 @@ import java.util.UUID;
 
 /**
  * Сервис восстановления пароля
- * Соответствует resetPassword.go
  */
 @Slf4j
 @Service
@@ -37,9 +38,6 @@ public class ResetPasswordService {
 
     /**
      * Генерация токена восстановления и отправка на почту
-     * Go: func (a *AuthService) ResetPasswordForgot(logger go_logger.Logger,
-     *                                                targetEmail, locale string)
-     *
      * ВАЖНО: Всегда возвращает успешный ответ, даже если email не найден
      * (защита от перебора email адресов)
      *
@@ -61,7 +59,6 @@ public class ResetPasswordService {
         }
 
         // Поиск userId по email
-        // Go: userId, err := a.db.SearchUserIdByEmail(logger, targetEmail)
         User user = userRepository.findByEmail(targetEmail)
                 .orElseGet(() -> {
                     log.error("Failed to get user data for email: {}", targetEmail);
@@ -71,15 +68,11 @@ public class ResetPasswordService {
         UUID userId = user.getId();
 
         // Если пользователь не найден, возвращаем успешный ответ (защита от перебора)
-        // Go: if errors.Is(err, models.ErrorUserNotFound) { return success }
         if (userId == null) {
             log.info("User not found by email (returning success for security): {}",
                     emailMasker.mask(targetEmail));
             return createSuccessResponse();
         }
-
-        // Получение данных пользователя
-
 
         try {
             // Создание токена восстановления пароля
@@ -115,7 +108,6 @@ public class ResetPasswordService {
 
     /**
      * Проверка валидности токена восстановления пароля
-     * Go: func (a *AuthService) ResetPasswordCheck(logger go_logger.Logger, token string)
      *
      * @param token Токен восстановления
      * @return ResetPasswordCheckResponse с userId
@@ -130,15 +122,12 @@ public class ResetPasswordService {
         }
 
         // Проверка на нахождение в черном списке
-        // Go: if ok := a.tokenBlackList.IsBlacklisted(token); ok
         if (tokenBlacklistService.isBlacklisted(token)) {
             log.warn("Token is in blacklist");
             throw new ResetPasswordException("Token is invalid");
         }
 
         try {
-            // Проверка JWT токена
-            // Go: userId, err := parseToken(token, a.Key.GetSigningKeyResetPassword())
             UUID userId = jwtService.parseToken(
                     token,
                     keyService.getSigningKeyResetPassword()
@@ -150,7 +139,7 @@ public class ResetPasswordService {
                     .userId(userId)
                     .build();
 
-        } catch (JwtService.JwtException e) {
+        } catch (CustomJwtException e) {
             log.warn("Invalid reset password token: {}", e.getMessage());
             throw new ResetPasswordException("Token is invalid", e);
         }
@@ -158,8 +147,6 @@ public class ResetPasswordService {
 
     /**
      * Обновление пароля через токен восстановления
-     * Go: func (a *AuthService) ResetPasswordUpdate(logger go_logger.Logger,
-     *                                               token, password string)
      *
      * @param token Токен восстановления
      * @param password Новый пароль
@@ -172,11 +159,8 @@ public class ResetPasswordService {
         return null;
     }
 
-    // ==================== PRIVATE METHODS ====================
-
     /**
      * Получение subject письма по локали
-     * Go: switch locale
      */
     private String getSubjectByLocale(String locale) {
         if ("en".equalsIgnoreCase(locale)) {
@@ -193,20 +177,5 @@ public class ResetPasswordService {
                 .status(true)
                 .message("An email with password recovery instructions has been sent.")
                 .build();
-    }
-
-    // ==================== CUSTOM EXCEPTIONS ====================
-
-    /**
-     * Исключение при восстановлении пароля
-     */
-    public static class ResetPasswordException extends RuntimeException {
-        public ResetPasswordException(String message) {
-            super(message);
-        }
-
-        public ResetPasswordException(String message, Throwable cause) {
-            super(message, cause);
-        }
     }
 }

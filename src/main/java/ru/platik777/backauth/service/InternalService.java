@@ -7,19 +7,17 @@ import ru.platik777.backauth.dto.response.StatusResponse;
 
 /**
  * Сервис внутренних операций
- * Соответствует internal.go
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class InternalService {
 
-    //private final EmailService emailService;
+    // private final EmailService emailService;
     private final ValidationService validationService;
 
     /**
      * SendMessageToSupport - отправка сообщения в техподдержку
-     * Go: func (a *AuthService) SendMessageToSupport(...)
      */
     public StatusResponse sendMessageToSupport(String userName, String email, String message, String targetSubject) {
         log.debug("SendMessageToSupport started from: {}", email);

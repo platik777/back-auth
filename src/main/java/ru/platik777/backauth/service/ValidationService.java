@@ -8,15 +8,13 @@ import org.springframework.util.StringUtils;
 import ru.platik777.backauth.entity.Tenant;
 import ru.platik777.backauth.entity.User;
 import ru.platik777.backauth.entity.types.AccountType;
+import ru.platik777.backauth.exception.ValidationException;
 import ru.platik777.backauth.repository.UserRepository;
 
 import java.util.regex.Pattern;
 
 /**
  * Сервис валидации данных
- * Соответствует validations.go
- *
- * ВАЖНО: Этот сервис только проверяет данные, но НЕ изменяет их (кроме нормализации)
  */
 @Slf4j
 @Service
@@ -27,18 +25,12 @@ public class ValidationService {
     private final PasswordService passwordService;
 
     // Регулярные выражения для валидации
-    // Go: validator := regexp.MustCompile(...)
     private static final Pattern LOGIN_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{2,}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("([a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\\.[a-zA-Z0-9_-]+)");
     private static final Pattern PHONE_PATTERN = Pattern.compile("^\\+\\d{1,4} \\d{1,4} \\d{1,12}$");
-    private static final Pattern UUID_PATTERN = Pattern.compile("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$");
 
     /**
      * Валидация данных при регистрации
-     * Go: func signUpValidation(logger go_logger.Logger, db repository.AuthInterfaceDB,
-     *                           u *models.User, s *models.Student, c *models.Company)
-     *
-     * ВАЖНО: Этот метод изменяет объекты (нормализует данные)
      *
      * @param user Пользователь (будет изменен)
      * @param tenant Компания (может быть null)
@@ -48,11 +40,9 @@ public class ValidationService {
         log.debug("Starting sign-up validation for login: {}", user.getLogin());
 
         // Нормализация данных (приведение к нижнему регистру)
-        // Go: u.Login = strings.ToLower(u.Login)
         normalizeUserData(user);
 
         // Установка дефолтного типа аккаунта
-        // Go: if u.AccountType == "" { u.AccountType = "individual" }
         if (user.getAccountType() == null) {
             user.setAccountType(AccountType.INDIVIDUAL);
             log.debug("Set default account type: INDIVIDUAL");
@@ -62,7 +52,6 @@ public class ValidationService {
         validateUserCommonData(user);
 
         // Валидация по типам аккаунтов
-        // Go: switch u.AccountType
         validateByAccountType(user, tenant);
 
         log.debug("Sign-up validation completed successfully");
@@ -70,13 +59,6 @@ public class ValidationService {
 
     /**
      * Проверка и хеширование паролей при смене
-     * Go: func comparingPasswordHashes(logger go_logger.Logger,
-     *                                  oldUserData, newUserData *models.User)
-     *
-     * ВАЖНО: В Go newUserData содержит:
-     * - Password (string) - текущий пароль пользователя (открытый)
-     * - NewPassword (string) - новый пароль (открытый)
-     * Оба хешируются и сравниваются
      *
      * @param oldPasswordHashFromDb Хеш текущего пароля из БД
      * @param currentPasswordPlain Текущий пароль от пользователя (открытый)
@@ -103,7 +85,6 @@ public class ValidationService {
         String currentPasswordHash = passwordService.generatePasswordHash(currentPasswordPlain);
 
         // Сравниваем с хешем из БД
-        // Go: if newUserData.Password != oldUserData.Password
         if (!currentPasswordHash.equals(oldPasswordHashFromDb)) {
             throw new ValidationException(
                     "Wrong current password entered",
@@ -112,7 +93,6 @@ public class ValidationService {
         }
 
         // Хешируем новый пароль
-        // Go: newUserData.NewPassword, err = generatePasswordHash(logger, newUserData.NewPassword)
         String newPasswordHash = passwordService.generatePasswordHash(newPasswordPlain);
 
         log.debug("Password change validation completed, new password hashed");
@@ -121,7 +101,6 @@ public class ValidationService {
 
     /**
      * Проверка поля на уникальность
-     * Go: func (a *AuthService) CheckFieldForUniqueness(...)
      *
      * @param field Имя поля (phone/email/login)
      * @param value Значение для проверки
@@ -130,7 +109,6 @@ public class ValidationService {
     public boolean checkFieldUniqueness(String field, String value) {
         log.debug("Checking uniqueness for field: {}", field);
 
-        // Валидация значения
         return switch (field.toLowerCase()) {
             case "phone" -> {
                 validatePhone(value);
@@ -151,12 +129,9 @@ public class ValidationService {
         };
     }
 
-    // ==================== FIELD VALIDATORS ====================
-
     /**
      * Валидация логина
-     * Go: func validationLogin(logger go_logger.Logger, login string)
-     *
+     * <p/>
      * Формат: начинается с буквы, минимум 3 символа, буквы/цифры/underscore
      */
     public void validateLogin(String login) {
@@ -175,7 +150,6 @@ public class ValidationService {
 
     /**
      * Валидация email
-     * Go: func validationEmail(logger go_logger.Logger, email string)
      */
     public void validateEmail(String email) {
         if (!StringUtils.hasText(email)) {
@@ -190,8 +164,7 @@ public class ValidationService {
 
     /**
      * Валидация телефона
-     * Go: func validationPhone(logger go_logger.Logger, phone string)
-     *
+     * <p/>
      * Формат: +<код страны 1-4 цифры> <код оператора 1-4 цифры> <номер 1-12 цифр>
      * Пример: +7 916 1234567890
      */
@@ -211,7 +184,6 @@ public class ValidationService {
 
     /**
      * Валидация пароля
-     * Go: func validationPassword(logger go_logger.Logger, password string)
      */
     public void validatePassword(String password) {
         if (!StringUtils.hasText(password)) {
@@ -227,7 +199,6 @@ public class ValidationService {
 
     /**
      * Валидация имени пользователя
-     * Go: func validationUserName(logger go_logger.Logger, userName string)
      */
     public void validateUserName(String userName) {
         if (!StringUtils.hasText(userName)) {
@@ -237,27 +208,19 @@ public class ValidationService {
 
     /**
      * Валидация сообщения (для техподдержки)
-     * Go: func validationMessage(logger go_logger.Logger, message string)
      */
     public void validateMessage(String message) {
         if (!StringUtils.hasText(message)) {
             throw new ValidationException("Message cannot be empty", "message");
         }
 
-        // Go: if len(message) > 4096
         if (message.length() > 4096) {
-            throw new ValidationException(
-                    "Message is too long (max 4096 characters)",
-                    "message"
-            );
+            throw new ValidationException("Message is too long (max 4096 characters)", "message");
         }
     }
 
-    // ==================== PRIVATE METHODS ====================
-
     /**
      * Нормализация данных пользователя
-     * Go: приведение к нижнему регистру в начале signUpValidation
      */
     private void normalizeUserData(User user) {
         if (user.getLogin() != null) {
@@ -273,7 +236,6 @@ public class ValidationService {
 
     /**
      * Валидация общих данных пользователя
-     * Go: func validationUser(logger, db, u)
      */
     private void validateUserCommonData(User user) {
         if (user == null) {
@@ -285,17 +247,10 @@ public class ValidationService {
         validateEmail(user.getEmail());
         validatePhone(user.getPhone());
 
-        // ВАЖНО: Пароль НЕ валидируется здесь!
-        // Он должен быть УЖЕ захеширован до вызова валидации
-        // В Go: u.Password, err = generatePasswordHash(logger, u.Password)
-        // происходит ПЕРЕД вызовом signUpValidation
-
         if (!StringUtils.hasText(user.getPasswordHash())) {
             throw new ValidationException("Password hash cannot be empty", "password");
         }
 
-        // Проверка уникальности
-        // Go: uniqueLogin, _ := a.db.FieldValueUniqueness(...)
         if (userRepository.existsByLoginIgnoreCase(user.getLogin())) {
             throw new ValidationException("Login is already in use", "login");
         }
@@ -316,7 +271,6 @@ public class ValidationService {
 
     /**
      * Валидация по типам аккаунтов
-     * Go: switch u.AccountType в signUpValidation
      */
     private void validateByAccountType(User user, Tenant tenant) {
         switch (user.getAccountType()) {
@@ -390,7 +344,6 @@ public class ValidationService {
 
     /**
      * Валидация общих полей компании
-     * Go: func validationGeneralFileldCompany(logger go_logger.Logger, c *models.Company)
      */
     private void validateGeneralCompanyFields(Tenant tenant) {
         validateNotEmpty(tenant.getFullTitle(), "fullTitle",
@@ -436,21 +389,5 @@ public class ValidationService {
         }
 
         return !newValue.equals(oldValue);
-    }
-
-    // ==================== CUSTOM EXCEPTION ====================
-
-    /**
-     * Исключение валидации
-     */
-    @Getter
-    public static class ValidationException extends RuntimeException {
-        private final String fieldName;
-
-        public ValidationException(String message, String fieldName) {
-            super(message);
-            this.fieldName = fieldName;
-        }
-
     }
 }
