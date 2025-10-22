@@ -47,12 +47,6 @@ public class ItemPermissionResponse {
     private List<String> permissionsList;
 
     /**
-     * Человекочитаемое представление прав
-     * "READ + WRITE + EXECUTE"
-     */
-    private String permissionsDescription;
-
-    /**
      * Дата создания доступа
      */
     private LocalDateTime createdAt;
@@ -74,8 +68,7 @@ public class ItemPermissionResponse {
                 .itemId(permission.getItemId())
                 .itemType(permission.getItemType())
                 .permissions(permission.getPermissions())
-                .permissionsList(permission.getPermissionsList()) // ГИБРИДНЫЙ ПОДХОД
-                .permissionsDescription(permission.getPermissionsDescription()) // ГИБРИДНЫЙ ПОДХОД
+                .permissionsList(permission.getPermissionsList())
                 .createdAt(permission.getCreatedAt() != null ?
                         LocalDateTime.from(permission.getCreatedAt()) : null)
                 .tenantId(permission.getTenantId())

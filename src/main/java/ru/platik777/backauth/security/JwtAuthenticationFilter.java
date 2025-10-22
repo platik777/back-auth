@@ -1,6 +1,7 @@
 package ru.platik777.backauth.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.entity.types.TokenType;
 import ru.platik777.backauth.service.JwtService;
 import ru.platik777.backauth.service.KeyService;
@@ -96,9 +98,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             TokenType tokenType = determineTokenType(requestPath);
 
             // 4. Валидируем токен соответствующим ключом
-            UUID userId = validateToken(token, tokenType);
+            AuthenticatedUser authenticatedUser = validateToken(token, tokenType);
 
-            if (userId == null) {
+            if (authenticatedUser == null || authenticatedUser.getUserId() == null) {
                 sendUnauthorizedError(response, "Invalid or expired token");
                 return;
             }
@@ -106,7 +108,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 5. Устанавливаем Authentication в контекст
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(
-                            userId,
+                            authenticatedUser,
                             null,
                             Collections.emptyList()
                     );
@@ -116,16 +118,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             );
 
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            request.setAttribute("userId", userId);
+            request.setAttribute("userId", authenticatedUser.getUserId());
+            request.setAttribute("tenantId", authenticatedUser.getTenantId());
             request.setAttribute("jwtToken", token);
 
-            log.debug("JWT authenticated: userId={}, path={}, tokenType={}",
-                    userId, requestPath, tokenType);
+            log.debug("JWT authenticated: userId={}, tenantId={}, path={}, tokenType={}",
+                    authenticatedUser.getUserId(), authenticatedUser.getTenantId(), requestPath, tokenType);
 
             // 6. Продолжаем цепочку
             filterChain.doFilter(request, response);
 
-        } catch (JwtService.JwtException e) {
+        } catch (JwtException e) {
             // Специфичные ошибки JWT
             log.warn("JWT validation failed: {}", e.getMessage());
             sendUnauthorizedError(response, e.getMessage());
@@ -170,20 +173,26 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Валидация токена соответствующим ключом
      */
-    private UUID validateToken(String token, TokenType tokenType) {
+    private AuthenticatedUser validateToken(String token, TokenType tokenType) {
         try {
             String signingKey = switch (tokenType) {
                 case APP_ACCESS -> keyService.getSigningAppKeyAccess();
                 case APP_REFRESH -> keyService.getSigningAppKeyRefresh();
                 case BASE_ACCESS -> keyService.getSigningBaseKeyAccess();
                 case BASE_REFRESH -> keyService.getSigningBaseKeyRefresh();
+                case RESET_PASSWORD, API_KEY -> null;
             };
+
+            if (signingKey == null) {
+                throw new JwtException("Null signingKey");
+            }
+
 
             return jwtService.parseToken(token, signingKey);
 
-        } catch (JwtService.JwtException e) {
+        } catch (JwtException e) {
             log.debug("Token validation failed: tokenType={}, error={}", tokenType, e.getMessage());
-            throw e; // Пробрасываем дальше для обработки
+            throw e;
         }
     }
 

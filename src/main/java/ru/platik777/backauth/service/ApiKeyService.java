@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.dto.response.ApiKeyAuthResponse;
 import ru.platik777.backauth.dto.response.ApiKeyResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
@@ -162,10 +163,10 @@ public class ApiKeyService {
             throw new ApiKeyException("API key cannot be empty", "apiKey");
         }
 
-        UUID userId;
+        AuthenticatedUser user;
 
         try {
-            userId = jwtService.parseToken(
+            user = jwtService.parseToken(
                     apiKeyToken,
                     keyService.getSigningKeyApiKey()
             );
@@ -183,17 +184,17 @@ public class ApiKeyService {
             throw new ApiKeyException("Invalid API key", e);
         }
 
-        boolean exists = apiKeyRepository.existsByApiKeyAndUserIdAndIsDeletedFalse(apiKeyToken, userId);
+        boolean exists = apiKeyRepository.existsByApiKeyAndUserIdAndIsDeletedFalse(apiKeyToken, user.getUserId());
 
         if (!exists) {
-            log.warn("API key not found in database. UserId: {}", userId);
+            log.warn("API key not found in database. UserId: {}", user.getUserId());
             throw new ApiKeyException("Invalid API key", "apiKey");
         }
 
-        log.debug("API key authorized successfully for userId: {}", userId);
+        log.debug("API key authorized successfully for userId: {}", user.getUserId());
 
         return ApiKeyAuthResponse.builder()
-                .userId(userId)
+                .userId(user.getUserId())
                 .build();
     }
 

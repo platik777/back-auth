@@ -28,4 +28,8 @@ public class Block extends BaseEntity {
 
     @Column
     private Integer rank;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "folder_id", nullable = false)
+    private Folder folder;
 }

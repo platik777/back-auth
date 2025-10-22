@@ -41,11 +41,6 @@ public class PermissionCheckResponse {
     private Boolean hasPermission;
 
     /**
-     * Текущие права пользователя (если есть доступ)
-     */
-    private Short actualPermissions;
-
-    /**
      * Описание причины отказа (если нет доступа)
      */
     private String message;

@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.dto.request.ApiKeyCheckRequest;
 import ru.platik777.backauth.dto.request.ApiKeyCreateRequest;
 import ru.platik777.backauth.dto.response.ApiKeyAuthResponse;
@@ -40,13 +41,13 @@ public class ApiKeyController {
     @PostMapping
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<ApiKeyResponse> createApiKey(
-            @CurrentUser UUID userId,
+            @CurrentUser AuthenticatedUser user,
             @RequestBody ApiKeyCreateRequest request) {
 
-        log.info("Creating API key for userId: {}, name: {}", userId, request.getName());
+        log.info("Creating API key for userId: {}, name: {}", user.getUserId(), request.getName());
 
         ApiKeyResponse response = apiKeyService.createApiKey(
-                userId,
+                user.getUserId(),
                 request.getName(),
                 request.getExpireAt()
         );
@@ -58,15 +59,14 @@ public class ApiKeyController {
      * DELETE /api/v1/key/{token}
      * Мягкое удаление API ключа
      */
-    @DeleteMapping("/{token}")
+    @DeleteMapping
     @SecurityRequirement(name = "bearerAuth")
     public ResponseEntity<StatusResponse> deleteApiKey(
-            @CurrentUser UUID userId,
-            @PathVariable String token) {
+            @CurrentUser AuthenticatedUser user, String token) {
 
-        log.info("Deleting API key for userId: {}", userId);
+        log.info("Deleting API key for userId: {}", user.getUserId());
 
-        StatusResponse response = apiKeyService.deleteApiKey(userId, token);
+        StatusResponse response = apiKeyService.deleteApiKey(user.getUserId(), token);
 
         return ResponseEntity.ok(response);
     }
@@ -77,11 +77,11 @@ public class ApiKeyController {
      */
     @GetMapping
     @SecurityRequirement(name = "bearerAuth")
-    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(@CurrentUser UUID userId) {
+    public ResponseEntity<List<ApiKeyResponse>> getApiKeys(@CurrentUser AuthenticatedUser user) {
 
-        log.debug("Getting API keys for userId: {}", userId);
+        log.debug("Getting API keys for userId: {}", user.getUserId());
 
-        List<ApiKeyResponse> response = apiKeyService.getApiKeys(userId);
+        List<ApiKeyResponse> response = apiKeyService.getApiKeys(user.getUserId());
 
         return ResponseEntity.ok(response);
     }

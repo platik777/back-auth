@@ -10,6 +10,7 @@ import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.exception.UnauthorizedException;
 
 import java.util.UUID;
@@ -28,7 +29,8 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     @Override
     public boolean supportsParameter(MethodParameter parameter) {
         return parameter.hasParameterAnnotation(CurrentUser.class) &&
-                UUID.class.isAssignableFrom(parameter.getParameterType());
+                (UUID.class.isAssignableFrom(parameter.getParameterType()) ||
+                        AuthenticatedUser.class.isAssignableFrom(parameter.getParameterType()));
     }
 
     @Override
@@ -46,14 +48,14 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
 
         Object principal = authentication.getPrincipal();
 
-        if (!(principal instanceof UUID userId)) {
-            log.error("Invalid principal type: expected Integer, got {}",
+        if (!(principal instanceof AuthenticatedUser authenticatedUser)) {
+            log.error("Invalid principal type: expected AuthenticatedUser, got {}",
                     principal.getClass().getSimpleName());
             throw new UnauthorizedException("Invalid authentication principal");
         }
 
-        log.debug("Resolved @CurrentUser: userId={}", userId);
-
-        return userId;
+        log.debug("Resolved @CurrentUser: userId={}, tenantId={}",
+                authenticatedUser.getUserId(), authenticatedUser.getTenantId());
+        return authenticatedUser;
     }
 }

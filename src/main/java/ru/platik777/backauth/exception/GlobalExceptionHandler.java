@@ -6,7 +6,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
-import ru.platik777.backauth.service.*;
 
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
@@ -24,9 +23,9 @@ public class GlobalExceptionHandler {
      * Обработка исключений аутентификации/авторизации
      * Go: возвращает 401 Unauthorized
      */
-    @ExceptionHandler(AuthService.AuthException.class)
+    @ExceptionHandler(AuthException.class)
     public ResponseEntity<ErrorResponse> handleAuthException(
-            AuthService.AuthException ex,
+            AuthException ex,
             WebRequest request) {
 
         log.warn("Authentication/Authorization error: {}", ex.getMessage());
@@ -46,9 +45,9 @@ public class GlobalExceptionHandler {
      * Обработка исключений валидации
      * Go: возвращает 400 Bad Request
      */
-    @ExceptionHandler(ValidationService.ValidationException.class)
+    @ExceptionHandler(ValidationException.class)
     public ResponseEntity<ValidationErrorResponse> handleValidationException(
-            ValidationService.ValidationException ex,
+            ValidationException ex,
             WebRequest request) {
 
         log.warn("Validation error: {} (field: {})", ex.getMessage(), ex.getFieldName());
@@ -69,9 +68,9 @@ public class GlobalExceptionHandler {
      * Обработка исключений API ключей
      * Go: возвращает 400 или 401
      */
-    @ExceptionHandler(ApiKeyService.ApiKeyException.class)
+    @ExceptionHandler(ApiKeyException.class)
     public ResponseEntity<ErrorResponse> handleApiKeyException(
-            ApiKeyService.ApiKeyException ex,
+            ApiKeyException ex,
             WebRequest request) {
 
         log.warn("API Key error: {}", ex.getMessage());
@@ -96,9 +95,9 @@ public class GlobalExceptionHandler {
      * Обработка исключений сброса пароля
      * Go: возвращает 400 Bad Request
      */
-    @ExceptionHandler(ResetPasswordService.ResetPasswordException.class)
+    @ExceptionHandler(ResetPasswordException.class)
     public ResponseEntity<ErrorResponse> handleResetPasswordException(
-            ResetPasswordService.ResetPasswordException ex,
+            ResetPasswordException ex,
             WebRequest request) {
 
         log.warn("Reset password error: {}", ex.getMessage());
@@ -118,9 +117,9 @@ public class GlobalExceptionHandler {
      * Обработка JWT исключений
      * Go: возвращает 401 Unauthorized
      */
-    @ExceptionHandler(JwtService.JwtException.class)
+    @ExceptionHandler(CustomJwtException.class)
     public ResponseEntity<ErrorResponse> handleJwtException(
-            JwtService.JwtException ex,
+            CustomJwtException ex,
             WebRequest request) {
 
         log.warn("JWT error: {}", ex.getMessage());
@@ -140,9 +139,9 @@ public class GlobalExceptionHandler {
      * Обработка исключений отправки email
      * Go: обычно логируется, но не прерывает выполнение
      */
-    @ExceptionHandler(EmailService.EmailSendException.class)
+    @ExceptionHandler(EmailSendException.class)
     public ResponseEntity<ErrorResponse> handleEmailSendException(
-            EmailService.EmailSendException ex,
+            EmailSendException ex,
             WebRequest request) {
 
         log.error("Email send error: {}", ex.getMessage(), ex);

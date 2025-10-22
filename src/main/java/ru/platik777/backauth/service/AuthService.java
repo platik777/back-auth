@@ -4,11 +4,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.dto.response.*;
 import ru.platik777.backauth.entity.*;
 import ru.platik777.backauth.entity.embedded.UserSettings;
 import ru.platik777.backauth.exception.AuthException;
 import ru.platik777.backauth.exception.CustomJwtException;
+import ru.platik777.backauth.exception.ValidationException;
 import ru.platik777.backauth.repository.*;
 
 import java.util.List;
@@ -82,7 +84,7 @@ public class AuthService {
             log.info("User registered successfully: userId={}, login={}", userId, user.getLogin());
             return responseBuilder.build();
 
-        } catch (ValidationService.ValidationException e) {
+        } catch (ValidationException e) {
             log.warn("Validation failed during sign up: {}", e.getMessage());
             throw new AuthException("Registration validation failed: " + e.getMessage(), e);
         } catch (Exception e) {
@@ -113,7 +115,7 @@ public class AuthService {
             if (!user.getPasswordHash().equals(passwordHash)) {
                 throw new AuthException("Invalid login or password");
             }
-            TokenResponse tokens = jwtService.createAllTokens(user.getId());
+            TokenResponse tokens = jwtService.createAllTokens(user.getId(), UUID.fromString(user.getTenantId()));
 
             log.info("User signed in successfully: userId={}, login={}", user.getId(), login);
 
@@ -148,7 +150,7 @@ public class AuthService {
                     .unique(unique)
                     .build();
 
-        } catch (ValidationService.ValidationException e) {
+        } catch (ValidationException e) {
             log.warn("Field uniqueness check failed: field={}, error={}", field, e.getMessage());
             throw new AuthException(e.getMessage(), e);
         }
@@ -157,11 +159,11 @@ public class AuthService {
     /**
      * Обновление app токенов через base refresh token
      */
-    public TokenResponse refreshAppTokenByBaseToken(UUID userId) {
+    public TokenResponse refreshAppTokenByBaseToken(UUID userId, UUID tenantId) {
         log.debug("RefreshAppTokenByBaseToken started");
 
         try {
-            TokenResponse tokens = jwtService.createAllTokens(userId);
+            TokenResponse tokens = jwtService.createAllTokens(userId, tenantId);
 
             return TokenResponse.builder()
                     .accessToken(tokens.getAccessToken())
@@ -179,12 +181,12 @@ public class AuthService {
     /**
      * Обновление app токенов
      */
-    public TokenResponse refreshAppToken(UUID userId) {
+    public TokenResponse refreshAppToken(UUID userId, UUID tenantId) {
         log.debug("RefreshAppToken started");
 
         try {
-            Map<String, String> appTokens = jwtService.createAppTokens(userId);
-            Map<String, String> baseTokens = jwtService.createBaseTokens(userId);
+            Map<String, String> appTokens = jwtService.createAppTokens(userId, tenantId);
+            Map<String, String> baseTokens = jwtService.createBaseTokens(userId, tenantId);
 
             return TokenResponse.builder()
                     .accessToken(appTokens.get("accessToken"))
@@ -202,11 +204,11 @@ public class AuthService {
     /**
      * Обновление base токенов
      */
-    public TokenResponse refreshBaseToken(UUID userId) {
+    public TokenResponse refreshBaseToken(UUID userId, UUID tenantId) {
         log.debug("RefreshBaseToken started");
 
         try {
-            Map<String, String> tokens = jwtService.createBaseTokens(userId);
+            Map<String, String> tokens = jwtService.createBaseTokens(userId, tenantId);
 
             return TokenResponse.builder()
                     .accessBaseToken(tokens.get("accessToken"))
@@ -229,14 +231,14 @@ public class AuthService {
         }
 
         try {
-            UUID userId = jwtService.parseToken(
+            AuthenticatedUser user = jwtService.parseToken(
                     accessToken,
                     keyService.getSigningAppKeyAccess()
             );
 
             return AuthorizationResponse.builder()
                     .status("OK")
-                    .userId(userId)
+                    .userId(user.getUserId())
                     .build();
 
         } catch (CustomJwtException e) {
@@ -255,14 +257,14 @@ public class AuthService {
         }
 
         try {
-            UUID userId = jwtService.parseToken(
+            AuthenticatedUser user = jwtService.parseToken(
                     accessToken,
                     keyService.getSigningBaseKeyAccess()
             );
 
             return AuthorizationResponse.builder()
                     .status("OK")
-                    .userId(userId)
+                    .userId(user.getUserId())
                     .build();
 
         } catch (CustomJwtException e) {

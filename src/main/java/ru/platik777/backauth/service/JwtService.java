@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.dto.response.TokenResponse;
 import ru.platik777.backauth.entity.types.TokenType;
 
@@ -51,13 +52,13 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с 4 токенами
      */
-    public TokenResponse createAllTokens(UUID userId) {
+    public TokenResponse createAllTokens(UUID userId, UUID tenantId) {
         log.debug("Creating all tokens for userId: {}", userId);
 
         validateUserId(userId);
 
-        Map<String, String> appTokens = createAppTokens(userId);
-        Map<String, String> baseTokens = createBaseTokens(userId);
+        Map<String, String> appTokens = createAppTokens(userId, tenantId);
+        Map<String, String> baseTokens = createBaseTokens(userId, tenantId);
 
         return new TokenResponse(
                 appTokens.get("accessToken"),
@@ -73,13 +74,14 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createAppTokens(UUID userId) {
+    public Map<String, String> createAppTokens(UUID userId, UUID tenantId) {
         log.debug("Creating App tokens for userId: {}", userId);
 
         validateUserId(userId);
 
         String accessToken = createToken(
                 userId,
+                tenantId,
                 appAccessTokenExpiration,
                 keyService.getSigningAppKeyAccess(),
                 TokenType.APP_ACCESS
@@ -87,6 +89,7 @@ public class JwtService {
 
         String refreshToken = createToken(
                 userId,
+                tenantId,
                 appRefreshTokenExpiration,
                 keyService.getSigningAppKeyRefresh(),
                 TokenType.APP_REFRESH
@@ -106,13 +109,14 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createBaseTokens(UUID userId) {
+    public Map<String, String> createBaseTokens(UUID userId, UUID tenantId) {
         log.debug("Creating Base tokens for userId: {}", userId);
 
         validateUserId(userId);
 
         String accessToken = createToken(
                 userId,
+                tenantId,
                 baseAccessTokenExpiration,
                 keyService.getSigningBaseKeyAccess(),
                 TokenType.BASE_ACCESS
@@ -120,6 +124,7 @@ public class JwtService {
 
         String refreshToken = createToken(
                 userId,
+                tenantId,
                 baseRefreshTokenExpiration,
                 keyService.getSigningBaseKeyRefresh(),
                 TokenType.BASE_REFRESH
@@ -139,13 +144,14 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Reset password токен
      */
-    public String createResetPasswordToken(UUID userId) {
+    public String createResetPasswordToken(UUID userId, UUID tenantId) {
         log.debug("Creating reset password token for userId: {}", userId);
 
         validateUserId(userId);
 
         String token = createToken(
                 userId,
+                tenantId,
                 resetPasswordExpiration,
                 keyService.getSigningKeyResetPassword(),
                 TokenType.RESET_PASSWORD
@@ -202,7 +208,7 @@ public class JwtService {
      * @return userId из токена
      * @throws JwtException если токен невалидный
      */
-    public UUID parseToken(String token, String signingKey) {
+    public AuthenticatedUser parseToken(String token, String signingKey) {
         if (token == null || token.isEmpty()) {
             throw new IllegalArgumentException("Token cannot be empty");
         }
@@ -220,14 +226,18 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String userId = claims.get("userId", String.class);
+            String userIdStr = claims.get("userId", String.class);
+            String tenantIdStr = claims.get("tenant_id", String.class);
 
-            if (userId == null) {
+            if (userIdStr == null) {
                 throw new JwtException("UserId is empty in token");
             }
 
-            log.debug("Token parsed successfully. UserId: {}", userId);
-            return UUID.fromString(userId);
+            UUID userId = UUID.fromString(userIdStr);
+            UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
+
+            log.debug("Token parsed successfully. UserId: {}, TenantId: {}", userId, tenantId);
+            return new AuthenticatedUser(userId, tenantId);
 
         } catch (ExpiredJwtException e) {
             log.debug("Token expired: {}", e.getMessage());
@@ -280,7 +290,7 @@ public class JwtService {
      * @param tokenType Тип токена (для отладки и claims)
      * @return JWT токен
      */
-    private String createToken(UUID userId, long validityMillis,
+    private String createToken(UUID userId, UUID tenantId, long validityMillis,
                                String signingKey, TokenType tokenType) {
 
         validateUserId(userId);
@@ -299,6 +309,7 @@ public class JwtService {
 
             String token = Jwts.builder()
                     .claim("userId", userId)
+                    .claim("tenant_id", tenantId)
                     .claim("type", tokenType.name())
                     .setIssuedAt(now)
                     .setExpiration(expiration)

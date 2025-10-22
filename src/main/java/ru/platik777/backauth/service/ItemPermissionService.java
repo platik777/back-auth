@@ -10,17 +10,20 @@ import ru.platik777.backauth.entity.types.Permission;
 import ru.platik777.backauth.exception.PermissionDeniedException;
 import ru.platik777.backauth.repository.*;
 
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Сервис управления правами доступа пользователей к элементам системы
- *
+ * <p/>
  * Работает с битовыми масками прав:
  * - READ (1): чтение
  * - WRITE (2): запись (требует READ)
  * - EXECUTE (4): выполнение (требует READ)
+ * <p/>
+ * Поддерживает наследование прав от родительских папок
  */
 @Slf4j
 @Service
@@ -34,6 +37,7 @@ public class ItemPermissionService {
     private final FileRepository fileRepository;
     private final BlockRepository blockRepository;
 
+    // ==================== УПРАВЛЕНИЕ ПРАВАМИ (GRANT/UPDATE/REVOKE) ====================
 
     /**
      * Выдать права доступа пользователю на элемент
@@ -79,7 +83,7 @@ public class ItemPermissionService {
         Optional<ItemUserPermission> existing = getPermissionEntity(targetUserId, itemId, itemType);
         if (existing.isPresent()) {
             throw new IllegalStateException("User " + targetUserId + " already has permission for item " + itemId +
-                            ". Use updatePermission() to modify existing permissions.");
+                    ". Use updatePermission() to modify existing permissions.");
         }
 
         // Создаем новую запись прав
@@ -181,85 +185,74 @@ public class ItemPermissionService {
         log.info("Permission revoked successfully: user={}, item={}", targetUserId, itemId);
     }
 
+    // ==================== ПОЛУЧЕНИЕ ЭФФЕКТИВНЫХ ПРАВ С НАСЛЕДОВАНИЕМ ====================
+
     /**
-     * Получить все проекты, доступные пользователю на чтение
+     * Получить эффективные права доступа к проекту (с учетом наследования от папок)
      */
     @Transactional(readOnly = true)
-    public List<ItemUserPermission> getReadableProjects(UUID userId) {
-        log.debug("Getting readable projects for userId: {}", userId);
+    public Short getProjectPermissions(UUID userId, UUID projectId) {
+        log.debug("Getting project permissions for user={}, project={}", userId, projectId);
 
-        validateUserId(userId);
+        // Теперь возвращается Short напрямую, а не ItemUserPermission
+        Short permissions = permissionRepository.findEffectivePermissionForProject(userId, projectId);
 
-        List<ItemUserPermission> projects = permissionRepository.findReadableProjectsByUserId(userId);
+        short result = permissions != null ? permissions : 0;
 
-        log.debug("Found {} readable projects for userId: {}", projects.size(), userId);
-        return projects;
+        log.debug("Project permissions result: {} for user={}, project={}", result, userId, projectId);
+        return result;
     }
 
     /**
-     * Получить все папки, доступные пользователю на чтение
+     * Получить эффективные права доступа к блоку
      */
     @Transactional(readOnly = true)
-    public List<ItemUserPermission> getReadableFolders(UUID userId) {
-        log.debug("Getting readable folders for userId: {}", userId);
+    public Short getBlockPermissions(UUID userId, UUID blockId) {
+        log.debug("Getting block permissions for user={}, block={}", userId, blockId);
 
-        validateUserId(userId);
+        Short permissions = permissionRepository.findEffectivePermissionForBlock(userId, blockId);
 
-        List<ItemUserPermission> folders = permissionRepository.findReadableFoldersByUserId(userId);
+        short result = permissions != null ? permissions : 0;
 
-        log.debug("Found {} readable folders for userId: {}", folders.size(), userId);
-        return folders;
+        log.debug("Block permissions result: {} for user={}, block={}", result, userId, blockId);
+        return result;
     }
 
     /**
-     * Получить все файлы, доступные пользователю на чтение
+     * Получить эффективные права доступа к файлу
      */
     @Transactional(readOnly = true)
-    public List<ItemUserPermission> getReadableFiles(UUID userId) {
-        log.debug("Getting readable files for userId: {}", userId);
+    public Short getFilePermissions(UUID userId, UUID fileId) {
+        log.debug("Getting file permissions for user={}, file={}", userId, fileId);
 
-        validateUserId(userId);
+        Short permissions = permissionRepository.findEffectivePermissionForFile(userId, fileId);
 
-        List<ItemUserPermission> files = permissionRepository.findReadableFilesByUserId(userId);
+        short result = permissions != null ? permissions : 0;
 
-        log.debug("Found {} readable files for userId: {}", files.size(), userId);
-        return files;
+        log.debug("File permissions result: {} for user={}, file={}", result, userId, fileId);
+        return result;
     }
 
     /**
-     * Получить все блоки, доступные пользователю на чтение
+     * Получить эффективные права доступа к папке
      */
     @Transactional(readOnly = true)
-    public List<ItemUserPermission> getReadableBlocks(UUID userId) {
-        log.debug("Getting readable blocks for userId: {}", userId);
+    public Short getFolderPermissions(UUID userId, UUID folderId) {
+        log.debug("Getting folder permissions for user={}, folder={}", userId, folderId);
 
-        validateUserId(userId);
+        Short permissions = permissionRepository.findEffectivePermissionForFolder(userId, folderId);
 
-        List<ItemUserPermission> blocks = permissionRepository.findReadableBlocksByUserId(userId);
+        short result = permissions != null ? permissions : 0;
 
-        log.debug("Found {} readable blocks for userId: {}", blocks.size(), userId);
-        return blocks;
+        log.debug("Folder permissions result: {} for user={}, folder={}", result, userId, folderId);
+        return result;
     }
 
-    /**
-     * Получить все элементы всех типов, доступные пользователю на чтение
-     */
-    @Transactional(readOnly = true)
-    public List<ItemUserPermission> getAllReadableItems(UUID userId) {
-        log.debug("Getting all readable items for userId: {}", userId);
-
-        validateUserId(userId);
-
-        List<ItemUserPermission> items = permissionRepository.findAllReadableItemsByUserId(userId);
-
-        log.debug("Found {} readable items for userId: {}", items.size(), userId);
-        return items;
-    }
-
-    // ==================== ПРОВЕРКА ДОСТУПА ====================
+    // ==================== ПРОВЕРКА ПРАВ ====================
 
     /**
      * Проверить наличие конкретных прав доступа к элементу
+     * Использует эффективные права с учетом наследования
      */
     @Transactional(readOnly = true)
     public boolean hasPermission(UUID userId, UUID itemId, ItemType itemType, int requiredPermissions) {
@@ -273,24 +266,15 @@ public class ItemPermissionService {
 
         if (requiredPermissions != 0 && (requiredPermissions & 1) == 0) {
             throw new IllegalArgumentException(
-                    "Invalid required permissions: " + requiredPermissions +
-                            ". Cannot check WRITE or EXECUTE without READ"
+                    "Invalid required permissions: " + requiredPermissions + ". Cannot check WRITE or EXECUTE without READ"
             );
         }
 
         boolean hasPermission = switch (itemType) {
-            case PROJECT -> permissionRepository.hasProjectPermissions(
-                    userId, itemId, (short) requiredPermissions
-            );
-            case FOLDER -> permissionRepository.hasFolderPermissions(
-                    userId, itemId, (short) requiredPermissions
-            );
-            case FILE -> permissionRepository.hasFilePermissions(
-                    userId, itemId, (short) requiredPermissions
-            );
-            case BLOCK -> permissionRepository.hasBlockPermissions(
-                    userId, itemId, (short) requiredPermissions
-            );
+            case FOLDER -> permissionRepository.hasFolderPermission(userId, itemId, (short) requiredPermissions);
+            case PROJECT -> permissionRepository.hasProjectPermission(userId, itemId, (short) requiredPermissions);
+            case BLOCK -> permissionRepository.hasBlockPermission(userId, itemId, (short) requiredPermissions);
+            case FILE -> permissionRepository.hasFilePermission(userId, itemId, (short) requiredPermissions);
         };
 
         log.debug("Permission check result: {} for userId: {}, itemId: {}, itemType: {}",
@@ -334,25 +318,422 @@ public class ItemPermissionService {
         return hasPermission(userId, itemId, itemType, permissions);
     }
 
+    // ==================== БЫСТРЫЕ ПРОВЕРКИ ПО ТИПАМ ====================
+
     /**
-     * Получить права доступа пользователя к конкретному элементу
+     * Быстрая проверка прав на чтение проекта
      */
     @Transactional(readOnly = true)
-    public ItemUserPermission getPermission(UUID userId, UUID itemId, ItemType itemType) {
-        log.debug("Getting permission for userId: {}, itemId: {}, itemType: {}",
-                userId, itemId, itemType);
+    public boolean canReadProject(UUID userId, UUID projectId) {
+        return permissionRepository.hasProjectPermission(userId, projectId, (short) 1);
+    }
 
-        validateUserId(userId);
-        validateItemId(itemId);
-        validateItemType(itemType);
+    /**
+     * Быстрая проверка прав на запись в проект
+     */
+    @Transactional(readOnly = true)
+    public boolean canWriteProject(UUID userId, UUID projectId) {
+        return permissionRepository.hasProjectPermission(userId, projectId, (short) 3); // READ + WRITE
+    }
 
-        return getPermissionEntity(userId, itemId, itemType).orElse(null);
+    /**
+     * Быстрая проверка прав на выполнение проекта
+     */
+    @Transactional(readOnly = true)
+    public boolean canExecuteProject(UUID userId, UUID projectId) {
+        return permissionRepository.hasProjectPermission(userId, projectId, (short) 5); // READ + EXECUTE
+    }
+
+    /**
+     * Быстрая проверка прав на чтение блока
+     */
+    @Transactional(readOnly = true)
+    public boolean canReadBlock(UUID userId, UUID blockId) {
+        return permissionRepository.hasBlockPermission(userId, blockId, (short) 1);
+    }
+
+    /**
+     * Быстрая проверка прав на запись в блок
+     */
+    @Transactional(readOnly = true)
+    public boolean canWriteBlock(UUID userId, UUID blockId) {
+        return permissionRepository.hasBlockPermission(userId, blockId, (short) 3);
+    }
+
+    /**
+     * Быстрая проверка прав на файл
+     */
+    @Transactional(readOnly = true)
+    public boolean canReadFile(UUID userId, UUID fileId) {
+        return permissionRepository.hasFilePermission(userId, fileId, (short) 1);
+    }
+
+    /**
+     * Быстрая проверка прав на запись в файл
+     */
+    @Transactional(readOnly = true)
+    public boolean canWriteFile(UUID userId, UUID fileId) {
+        return permissionRepository.hasFilePermission(userId, fileId, (short) 3);
+    }
+
+    /**
+     * Быстрая проверка прав на папку
+     */
+    @Transactional(readOnly = true)
+    public boolean canReadFolder(UUID userId, UUID folderId) {
+        return permissionRepository.hasFolderPermission(userId, folderId, (short) 1);
+    }
+
+    /**
+     * Быстрая проверка прав на запись в папку
+     */
+    @Transactional(readOnly = true)
+    public boolean canWriteFolder(UUID userId, UUID folderId) {
+        return permissionRepository.hasFolderPermission(userId, folderId, (short) 3);
+    }
+
+    // ==================== МАССОВЫЕ ОПЕРАЦИИ ====================
+
+    /**
+     * Получить права для нескольких проектов одновременно
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Short> getProjectPermissionsBatch(UUID userId, List<UUID> projectIds) {
+        log.debug("Getting batch project permissions for user={}, count={}", userId, projectIds.size());
+
+        if (projectIds == null || projectIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        UUID[] idsArray = projectIds.toArray(new UUID[0]);
+        List<Object[]> results = permissionRepository.findEffectivePermissionsForProjects(userId, idsArray);
+
+        Map<UUID, Short> permissions = results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).shortValue()
+                ));
+
+        log.debug("Batch project permissions result: {} items for user={}", permissions.size(), userId);
+        return permissions;
+    }
+
+    /**
+     * Получить права для нескольких блоков одновременно
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Short> getBlockPermissionsBatch(UUID userId, List<UUID> blockIds) {
+        log.debug("Getting batch block permissions for user={}, count={}", userId, blockIds.size());
+
+        if (blockIds == null || blockIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        UUID[] idsArray = blockIds.toArray(new UUID[0]);
+        List<Object[]> results = permissionRepository.findEffectivePermissionsForBlocks(userId, idsArray);
+
+        Map<UUID, Short> permissions = results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).shortValue()
+                ));
+
+        log.debug("Batch block permissions result: {} items for user={}", permissions.size(), userId);
+        return permissions;
+    }
+
+    /**
+     * Получить права для нескольких файлов одновременно
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Short> getFilePermissionsBatch(UUID userId, List<UUID> fileIds) {
+        log.debug("Getting batch file permissions for user={}, count={}", userId, fileIds.size());
+
+        if (fileIds == null || fileIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        UUID[] idsArray = fileIds.toArray(new UUID[0]);
+        List<Object[]> results = permissionRepository.findEffectivePermissionsForFiles(userId, idsArray);
+
+        Map<UUID, Short> permissions = results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).shortValue()
+                ));
+
+        log.debug("Batch file permissions result: {} items for user={}", permissions.size(), userId);
+        return permissions;
+    }
+
+    /**
+     * Получить права для нескольких папок одновременно
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, Short> getFolderPermissionsBatch(UUID userId, List<UUID> folderIds) {
+        log.debug("Getting batch folder permissions for user={}, count={}", userId, folderIds.size());
+
+        if (folderIds == null || folderIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        UUID[] idsArray = folderIds.toArray(new UUID[0]);
+        List<Object[]> results = permissionRepository.findEffectivePermissionsForFolders(userId, idsArray);
+
+        Map<UUID, Short> permissions = results.stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).shortValue()
+                ));
+
+        log.debug("Batch folder permissions result: {} items for user={}", permissions.size(), userId);
+        return permissions;
+    }
+
+    // ==================== ПОЛУЧЕНИЕ ДОСТУПНЫХ ЭЛЕМЕНТОВ ====================
+
+    /**
+     * Получить все доступные проекты с их правами
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getAllAccessibleProjects(UUID userId, String tenantId) {
+        log.debug("Getting all accessible projects for user={}, tenant={}", userId, tenantId);
+
+        List<Object[]> results = permissionRepository.findAllAccessibleProjects(userId, tenantId);
+
+        List<ItemWithPermissions> projects = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],           // id
+                        (UUID) row[1],           // folder_id
+                        ((Number) row[6]).shortValue(), // effective_permissions
+                        ((Timestamp) row[3]).toLocalDateTime(), // created_at
+                        ItemType.PROJECT
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} accessible projects for user={}", projects.size(), userId);
+        return projects;
+    }
+
+    /**
+     * Получить все доступные блоки с их правами
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getAllAccessibleBlocks(UUID userId, String tenantId) {
+        log.debug("Getting all accessible blocks for user={}, tenant={}", userId, tenantId);
+
+        List<Object[]> results = permissionRepository.findAllAccessibleBlocks(userId, tenantId);
+
+        List<ItemWithPermissions> blocks = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],
+                        (UUID) row[1],
+                        ((Number) row[6]).shortValue(),
+                        ((Timestamp) row[3]).toLocalDateTime(),
+                        ItemType.BLOCK
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} accessible blocks for user={}", blocks.size(), userId);
+        return blocks;
+    }
+
+    /**
+     * Получить все доступные файлы с их правами
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getAllAccessibleFiles(UUID userId, String tenantId) {
+        log.debug("Getting all accessible files for user={}, tenant={}", userId, tenantId);
+
+        List<Object[]> results = permissionRepository.findAllAccessibleFiles(userId, tenantId);
+
+        List<ItemWithPermissions> files = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],
+                        (UUID) row[1],
+                        ((Number) row[6]).shortValue(),
+                        ((Timestamp) row[3]).toLocalDateTime(),
+                        ItemType.FILE
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} accessible files for user={}", files.size(), userId);
+        return files;
+    }
+
+    /**
+     * Получить все доступные папки с их правами
+     */
+    @Transactional(readOnly = true)
+    public List<FolderWithPermissions> getAllAccessibleFolders(UUID userId, String tenantId) {
+        log.debug("Getting all accessible folders for user={}, tenant={}", userId, tenantId);
+
+        List<Object[]> results = permissionRepository.findAllAccessibleFolders(userId, tenantId);
+
+        List<FolderWithPermissions> folders = results.stream()
+                .map(row -> new FolderWithPermissions(
+                        (UUID) row[0],           // id
+                        (String) row[1],         // name
+                        (UUID) row[2],           // parent_id
+                        (Boolean) row[4],        // has_children
+                        ((Number) row[8]).shortValue(), // effective_permissions
+                        ((Timestamp) row[5]).toLocalDateTime() // created_at
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} accessible folders for user={}", folders.size(), userId);
+        return folders;
+    }
+
+    // ==================== ПОЛУЧЕНИЕ ЭЛЕМЕНТОВ В ПАПКЕ ====================
+
+    /**
+     * Получить все проекты в папке с правами доступа
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getProjectsInFolder(UUID userId, UUID folderId) {
+        log.debug("Getting projects in folder={} for user={}", folderId, userId);
+
+        List<Object[]> results = permissionRepository.findProjectsInFolderWithPermissions(userId, folderId);
+
+        List<ItemWithPermissions> projects = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],
+                        (UUID) row[1],
+                        ((Number) row[4]).shortValue(),
+                        ((Timestamp) row[3]).toLocalDateTime(),
+                        ItemType.PROJECT
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} projects in folder={} for user={}", projects.size(), folderId, userId);
+        return projects;
+    }
+
+    /**
+     * Получить все блоки в папке с правами доступа
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getBlocksInFolder(UUID userId, UUID folderId) {
+        log.debug("Getting blocks in folder={} for user={}", folderId, userId);
+
+        List<Object[]> results = permissionRepository.findBlocksInFolderWithPermissions(userId, folderId);
+
+        List<ItemWithPermissions> blocks = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],
+                        (UUID) row[1],
+                        ((Number) row[4]).shortValue(),
+                        ((Timestamp) row[3]).toLocalDateTime(),
+                        ItemType.BLOCK
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} blocks in folder={} for user={}", blocks.size(), folderId, userId);
+        return blocks;
+    }
+
+    /**
+     * Получить все файлы в папке с правами доступа
+     */
+    @Transactional(readOnly = true)
+    public List<ItemWithPermissions> getFilesInFolder(UUID userId, UUID folderId) {
+        log.debug("Getting files in folder={} for user={}", folderId, userId);
+
+        List<Object[]> results = permissionRepository.findFilesInFolderWithPermissions(userId, folderId);
+
+        List<ItemWithPermissions> files = results.stream()
+                .map(row -> new ItemWithPermissions(
+                        (UUID) row[0],
+                        (UUID) row[1],
+                        ((Number) row[4]).shortValue(),
+                        ((Timestamp) row[3]).toLocalDateTime(),
+                        ItemType.FILE
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} files in folder={} for user={}", files.size(), folderId, userId);
+        return files;
+    }
+
+    /**
+     * Получить дочерние папки с правами доступа
+     */
+    @Transactional(readOnly = true)
+    public List<FolderWithPermissions> getSubfolders(UUID userId, UUID parentFolderId) {
+        log.debug("Getting subfolders of folder={} for user={}", parentFolderId, userId);
+
+        List<Object[]> results = permissionRepository.findSubfoldersWithPermissions(userId, parentFolderId);
+
+        List<FolderWithPermissions> subfolders = results.stream()
+                .map(row -> new FolderWithPermissions(
+                        (UUID) row[0],
+                        (String) row[1],
+                        (UUID) row[2],
+                        (Boolean) row[4],
+                        ((Number) row[6]).shortValue(),
+                        ((Timestamp) row[5]).toLocalDateTime()
+                ))
+                .collect(Collectors.toList());
+
+        log.debug("Found {} subfolders in folder={} for user={}", subfolders.size(), parentFolderId, userId);
+        return subfolders;
+    }
+
+    /**
+     * Получить все содержимое папки с правами доступа
+     */
+    @Transactional(readOnly = true)
+    public FolderContents getFolderContents(UUID userId, UUID folderId) {
+        log.debug("Getting folder contents for folder={}, user={}", folderId, userId);
+
+        List<FolderWithPermissions> subfolders = getSubfolders(userId, folderId);
+        List<ItemWithPermissions> projects = getProjectsInFolder(userId, folderId);
+        List<ItemWithPermissions> blocks = getBlocksInFolder(userId, folderId);
+        List<ItemWithPermissions> files = getFilesInFolder(userId, folderId);
+
+        FolderContents contents = new FolderContents(subfolders, projects, blocks, files);
+
+        log.debug("Folder contents for folder={}: {} subfolders, {} projects, {} blocks, {} files",
+                folderId, subfolders.size(), projects.size(), blocks.size(), files.size());
+
+        return contents;
+    }
+
+    // ==================== ПОДСЧЕТ ЭЛЕМЕНТОВ ====================
+
+    /**
+     * Подсчитать количество доступных проектов с минимальным уровнем прав
+     */
+    @Transactional(readOnly = true)
+    public long countAccessibleProjects(UUID userId, String tenantId, short minPermissionMask) {
+        log.debug("Counting accessible projects for user={}, tenant={}, minPermissions={}",
+                userId, tenantId, minPermissionMask);
+
+        long count = permissionRepository.countAccessibleProjects(userId, tenantId, minPermissionMask);
+
+        log.debug("Found {} accessible projects for user={}", count, userId);
+        return count;
+    }
+
+    /**
+     * Подсчитать количество доступных блоков с минимальным уровнем прав
+     */
+    @Transactional(readOnly = true)
+    public long countAccessibleBlocks(UUID userId, String tenantId, short minPermissionMask) {
+        log.debug("Counting accessible blocks for user={}, tenant={}, minPermissions={}",
+                userId, tenantId, minPermissionMask);
+
+        long count = permissionRepository.countAccessibleBlocks(userId, tenantId, minPermissionMask);
+
+        log.debug("Found {} accessible blocks for user={}", count, userId);
+        return count;
     }
 
     // ==================== ПРИВАТНЫЕ ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ ====================
 
     /**
-     * Получить сущность прав доступа
+     * Получить сущность прав доступа (только прямой доступ, без наследования)
      */
     private Optional<ItemUserPermission> getPermissionEntity(UUID userId, UUID itemId, ItemType itemType) {
         return switch (itemType) {
@@ -366,8 +747,7 @@ public class ItemPermissionService {
     /**
      * Создать новую сущность прав доступа
      */
-    private ItemUserPermission createPermissionEntity(UUID userId, UUID itemId,
-                                                      ItemType itemType, short permissions) {
+    private ItemUserPermission createPermissionEntity(UUID userId, UUID itemId, ItemType itemType, short permissions) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
@@ -389,7 +769,7 @@ public class ItemPermissionService {
                 permission.setFolder(folder);
             }
             case FILE -> {
-                ru.platik777.backauth.entity.File file = fileRepository.findById(itemId)
+                File file = fileRepository.findById(itemId)
                         .orElseThrow(() -> new IllegalArgumentException("File not found: " + itemId));
                 permission.setFile(file);
             }
@@ -449,44 +829,209 @@ public class ItemPermissionService {
         }
     }
 
-    // ==================== СТАТИСТИКА ====================
+    // ==================== DTO КЛАССЫ ====================
 
     /**
-     * Получить статистику доступа пользователя
+     * DTO для элемента с правами доступа
      */
-    @Transactional(readOnly = true)
-    public UserAccessStatistics getUserAccessStatistics(UUID userId) {
-        log.debug("Getting access statistics for userId: {}", userId);
+    public static class ItemWithPermissions {
+        private final UUID id;
+        private final UUID folderId;
+        private final Short effectivePermissions;
+        private final LocalDateTime createdAt;
+        private final ItemType itemType;
 
-        validateUserId(userId);
+        public ItemWithPermissions(UUID id, UUID folderId, Short effectivePermissions,
+                                   LocalDateTime createdAt, ItemType itemType) {
+            this.id = id;
+            this.folderId = folderId;
+            this.effectivePermissions = effectivePermissions;
+            this.createdAt = createdAt;
+            this.itemType = itemType;
+        }
 
-        long projectCount = permissionRepository.findReadableProjectsByUserId(userId).size();
-        long folderCount = permissionRepository.findReadableFoldersByUserId(userId).size();
-        long fileCount = permissionRepository.findReadableFilesByUserId(userId).size();
-        long blockCount = permissionRepository.findReadableBlocksByUserId(userId).size();
+        public UUID getId() {
+            return id;
+        }
 
-        return new UserAccessStatistics(
-                userId,
-                projectCount,
-                folderCount,
-                fileCount,
-                blockCount,
-                projectCount + folderCount + fileCount + blockCount
-        );
+        public UUID getFolderId() {
+            return folderId;
+        }
+
+        public Short getEffectivePermissions() {
+            return effectivePermissions;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public ItemType getItemType() {
+            return itemType;
+        }
+
+        public boolean canRead() {
+            return (effectivePermissions & 1) != 0;
+        }
+
+        public boolean canWrite() {
+            return (effectivePermissions & 2) != 0;
+        }
+
+        public boolean canExecute() {
+            return (effectivePermissions & 4) != 0;
+        }
+
+        public String getPermissionsString() {
+            StringBuilder sb = new StringBuilder();
+            if (canRead()) sb.append("R");
+            if (canWrite()) sb.append("W");
+            if (canExecute()) sb.append("X");
+            return sb.length() > 0 ? sb.toString() : "NONE";
+        }
+
+        @Override
+        public String toString() {
+            return "ItemWithPermissions{" +
+                    "id=" + id +
+                    ", folderId=" + folderId +
+                    ", permissions=" + getPermissionsString() +
+                    ", itemType=" + itemType +
+                    ", createdAt=" + createdAt +
+                    '}';
+        }
     }
 
-    // ==================== INNER CLASSES ====================
+    /**
+     * DTO для папки с правами доступа
+     */
+    public static class FolderWithPermissions {
+        private final UUID id;
+        private final String name;
+        private final UUID parentId;
+        private final Boolean hasChildren;
+        private final Short effectivePermissions;
+        private final LocalDateTime createdAt;
+
+        public FolderWithPermissions(UUID id, String name, UUID parentId, Boolean hasChildren,
+                                     Short effectivePermissions, LocalDateTime createdAt) {
+            this.id = id;
+            this.name = name;
+            this.parentId = parentId;
+            this.hasChildren = hasChildren;
+            this.effectivePermissions = effectivePermissions;
+            this.createdAt = createdAt;
+        }
+
+        public UUID getId() {
+            return id;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public UUID getParentId() {
+            return parentId;
+        }
+
+        public Boolean getHasChildren() {
+            return hasChildren;
+        }
+
+        public Short getEffectivePermissions() {
+            return effectivePermissions;
+        }
+
+        public LocalDateTime getCreatedAt() {
+            return createdAt;
+        }
+
+        public boolean canRead() {
+            return (effectivePermissions & 1) != 0;
+        }
+
+        public boolean canWrite() {
+            return (effectivePermissions & 2) != 0;
+        }
+
+        public boolean canExecute() {
+            return (effectivePermissions & 4) != 0;
+        }
+
+        public String getPermissionsString() {
+            StringBuilder sb = new StringBuilder();
+            if (canRead()) sb.append("R");
+            if (canWrite()) sb.append("W");
+            if (canExecute()) sb.append("X");
+            return !sb.isEmpty() ? sb.toString() : "NONE";
+        }
+
+        @Override
+        public String toString() {
+            return "FolderWithPermissions{" +
+                    "id=" + id +
+                    ", name='" + name + '\'' +
+                    ", parentId=" + parentId +
+                    ", hasChildren=" + hasChildren +
+                    ", permissions=" + getPermissionsString() +
+                    ", createdAt=" + createdAt +
+                    '}';
+        }
+    }
 
     /**
-     * DTO для статистики доступа пользователя
+     * DTO для содержимого папки
      */
-    public record UserAccessStatistics(
-            UUID userId,
-            long readableProjects,
-            long readableFolders,
-            long readableFiles,
-            long readableBlocks,
-            long totalReadableItems
-    ) {}
+    public static class FolderContents {
+        private final List<FolderWithPermissions> folders;
+        private final List<ItemWithPermissions> projects;
+        private final List<ItemWithPermissions> blocks;
+        private final List<ItemWithPermissions> files;
 
+        public FolderContents(List<FolderWithPermissions> folders,
+                              List<ItemWithPermissions> projects,
+                              List<ItemWithPermissions> blocks,
+                              List<ItemWithPermissions> files) {
+            this.folders = folders != null ? folders : Collections.emptyList();
+            this.projects = projects != null ? projects : Collections.emptyList();
+            this.blocks = blocks != null ? blocks : Collections.emptyList();
+            this.files = files != null ? files : Collections.emptyList();
+        }
+
+        public List<FolderWithPermissions> getFolders() {
+            return folders;
+        }
+
+        public List<ItemWithPermissions> getProjects() {
+            return projects;
+        }
+
+        public List<ItemWithPermissions> getBlocks() {
+            return blocks;
+        }
+
+        public List<ItemWithPermissions> getFiles() {
+            return files;
+        }
+
+        public int getTotalCount() {
+            return folders.size() + projects.size() + blocks.size() + files.size();
+        }
+
+        public boolean isEmpty() {
+            return getTotalCount() == 0;
+        }
+
+        @Override
+        public String toString() {
+            return "FolderContents{" +
+                    "folders=" + folders.size() +
+                    ", projects=" + projects.size() +
+                    ", blocks=" + blocks.size() +
+                    ", files=" + files.size() +
+                    ", total=" + getTotalCount() +
+                    '}';
+        }
+    }
 }

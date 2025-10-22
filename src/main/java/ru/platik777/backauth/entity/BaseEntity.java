@@ -20,6 +20,8 @@ import java.time.Instant;
 @NoArgsConstructor
 @SuperBuilder
 public abstract class BaseEntity {
+    private String tenantId;
+
     @CreatedDate
     @JsonFormat(shape = JsonFormat.Shape.STRING)
     private Instant createdAt;
@@ -33,6 +35,4 @@ public abstract class BaseEntity {
 
     @LastModifiedBy
     private String updatedBy;
-
-    private String tenantId;
 }
