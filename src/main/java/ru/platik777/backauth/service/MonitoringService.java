@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.stereotype.Service;
+import ru.platik777.backauth.dto.BlacklistStats;
 import ru.platik777.backauth.dto.monitoring.MonitoringReport;
 import ru.platik777.backauth.dto.monitoring.SystemMetrics;
 import ru.platik777.backauth.dto.monitoring.TokenStatistics;
@@ -93,7 +94,7 @@ public class MonitoringService implements HealthIndicator {
      * Получение статистики токенов
      */
     public TokenStatistics getTokenStatistics() {
-        TokenBlacklistService.BlacklistStats blacklistStats =
+        BlacklistStats blacklistStats =
                 tokenBlacklistService.getStats();
 
         return TokenStatistics.builder()

@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Создание индексов для оптимизации -->
+    <changeSet id="indexes-1" author="developer">
+        <!-- Индексы для users -->
+        <createIndex tableName="users" indexName="idx_users_email">
+            <column name="email"/>
+        </createIndex>
+
+        <createIndex tableName="users" indexName="idx_users_login">
+            <column name="login"/>
+        </createIndex>
+
+        <createIndex tableName="users" indexName="idx_users_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Индексы для tenant -->
+        <createIndex tableName="tenant" indexName="idx_tenant_owner">
+            <column name="owner_id"/>
+        </createIndex>
+
+        <!-- Индексы для groups -->
+        <createIndex tableName="groups" indexName="idx_groups_creator">
+            <column name="creator_id"/>
+        </createIndex>
+
+        <createIndex tableName="groups" indexName="idx_groups_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Индексы для group_user -->
+        <createIndex tableName="group_user" indexName="idx_group_user_group">
+            <column name="group_id"/>
+        </createIndex>
+
+        <createIndex tableName="group_user" indexName="idx_group_user_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <!-- Индексы для folders -->
+        <createIndex tableName="folders" indexName="idx_folders_parent">
+            <column name="parent_id"/>
+        </createIndex>
+
+        <createIndex tableName="folders" indexName="idx_folders_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Индексы для projects -->
+        <createIndex tableName="projects" indexName="idx_projects_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="projects" indexName="idx_projects_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <createIndex tableName="projects" indexName="idx_projects_type">
+            <column name="type"/>
+        </createIndex>
+
+        <createIndex tableName="projects" indexName="idx_projects_status">
+            <column name="status"/>
+        </createIndex>
+
+        <!-- Индексы для deltas -->
+        <createIndex tableName="deltas" indexName="idx_deltas_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="deltas" indexName="idx_deltas_project_version">
+            <column name="project_id"/>
+            <column name="number_version"/>
+        </createIndex>
+
+        <!-- Индексы для blocks -->
+        <createIndex tableName="blocks" indexName="idx_blocks_category">
+            <column name="category_id"/>
+        </createIndex>
+
+        <createIndex tableName="blocks" indexName="idx_blocks_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Индексы для images -->
+        <createIndex tableName="images" indexName="idx_images_block">
+            <column name="block_id"/>
+        </createIndex>
+
+        <createIndex tableName="images" indexName="idx_images_active">
+            <column name="is_active"/>
+        </createIndex>
+
+        <!-- Индексы для files -->
+        <createIndex tableName="files" indexName="idx_files_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="files" indexName="idx_files_tenant">
+            <column name="tenant_id"/>
+        </createIndex>
+
+        <!-- Индексы для item_user_permission -->
+        <createIndex tableName="item_user_permission" indexName="idx_permission_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_user_permission" indexName="idx_permission_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_user_permission" indexName="idx_permission_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_user_permission" indexName="idx_permission_file">
+            <column name="file_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_user_permission" indexName="idx_permission_block">
+            <column name="block_id"/>
+        </createIndex>
+
+        <!-- Индексы для item_group_permission -->
+        <createIndex tableName="item_group_permission" indexName="idx_group_permission_group">
+            <column name="group_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_group_permission" indexName="idx_group_permission_project">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_group_permission" indexName="idx_group_permission_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_group_permission" indexName="idx_group_permission_file">
+            <column name="file_id"/>
+        </createIndex>
+
+        <createIndex tableName="item_group_permission" indexName="idx_group_permission_block">
+            <column name="block_id"/>
+        </createIndex>
+
+        <!-- Индексы для api_key -->
+        <createIndex tableName="api_key" indexName="idx_apikey_user">
+            <column name="user_id"/>
+        </createIndex>
+
+        <createIndex tableName="api_key" indexName="idx_apikey_key">
+            <column name="api_key"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- GIN индексы для JSONB полей -->
+    <changeSet id="indexes-2" author="developer">
+        <sql>CREATE INDEX idx_users_settings ON users USING GIN (settings);</sql>
+        <sql>CREATE INDEX idx_projects_data ON projects USING GIN (data);</sql>
+        <sql>CREATE INDEX idx_blocks_data ON blocks USING GIN (data);</sql>
+        <sql>CREATE INDEX idx_deltas_delta ON deltas USING GIN (delta);</sql>
+    </changeSet>
+
+    <!-- GIN индексы для массивов -->
+    <changeSet id="indexes-3" author="developer">
+        <sql>CREATE INDEX idx_folders_all_parant_ids ON folders USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_projects_all_parant_ids ON projects USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_blocks_all_parant_ids ON blocks USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_files_all_parant_ids ON files USING GIN (all_parant_ids);</sql>
+    </changeSet>
+
+    <!-- Уникальные partial индексы для гарантии уникальности permission на item для пользователя -->
+    <changeSet id="indexes-4" author="developer">
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_project
+                ON item_user_permission (user_id, project_id)
+                WHERE project_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_folder
+                ON item_user_permission (user_id, folder_id)
+                WHERE folder_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_file
+                ON item_user_permission (user_id, file_id)
+                WHERE file_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_user_block
+                ON item_user_permission (user_id, block_id)
+                WHERE block_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+    <!-- Уникальные partial индексы для гарантии уникальности permission на item для группы -->
+    <changeSet id="indexes-5" author="developer">
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_group_project
+                ON item_group_permission (group_id, project_id)
+                WHERE project_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_group_folder
+                ON item_group_permission (group_id, folder_id)
+                WHERE folder_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_group_file
+                ON item_group_permission (group_id, file_id)
+                WHERE file_id IS NOT NULL;
+        </sql>
+        <sql>
+            CREATE UNIQUE INDEX idx_unique_permission_group_block
+                ON item_group_permission (group_id, block_id)
+                WHERE block_id IS NOT NULL;
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

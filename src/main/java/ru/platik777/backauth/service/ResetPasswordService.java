@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import ru.platik777.backauth.dto.AuthenticatedUser;
 import ru.platik777.backauth.dto.response.ResetPasswordCheckResponse;
 import ru.platik777.backauth.dto.response.StatusResponse;
 import ru.platik777.backauth.dto.response.UserResponse;
@@ -66,6 +67,7 @@ public class ResetPasswordService {
                 });
         assert user != null;
         UUID userId = user.getId();
+        UUID tenantId = UUID.fromString(user.getTenantId());
 
         // Если пользователь не найден, возвращаем успешный ответ (защита от перебора)
         if (userId == null) {
@@ -77,7 +79,7 @@ public class ResetPasswordService {
         try {
             // Создание токена восстановления пароля
             // Go: token, err := createTokenForResetPassword(logger, userId, a.Key.GetSigningKeyResetPassword())
-            String token = jwtService.createResetPasswordToken(userId);
+            String token = jwtService.createResetPasswordToken(userId, tenantId);
 
             // Формирование URL восстановления
             // Go: resetPasswordUrl := viper.GetString("baseUrl") + "/auth/forgot-password/update/?token=" + token
@@ -128,15 +130,15 @@ public class ResetPasswordService {
         }
 
         try {
-            UUID userId = jwtService.parseToken(
+            AuthenticatedUser user = jwtService.parseToken(
                     token,
                     keyService.getSigningKeyResetPassword()
             );
 
-            log.debug("Reset password token validated successfully for userId: {}", userId);
+            log.debug("Reset password token validated successfully for userId: {}", user.getUserId());
 
             return ResetPasswordCheckResponse.builder()
-                    .userId(userId)
+                    .userId(user.getUserId())
                     .build();
 
         } catch (CustomJwtException e) {

@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Создание таблицы item_user_permission -->
+    <changeSet id="permissions-1" author="developer">
+        <createTable tableName="item_user_permission">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false" foreignKeyName="fk_permission_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="permission" type="SMALLINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_permission_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="folder_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_permission_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+            <column name="file_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_permission_file" references="files(id)" deleteCascade="true"/>
+            </column>
+            <column name="block_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_permission_block" references="blocks(id)" deleteCascade="true"/>
+            </column>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="TIMESTAMP"/>
+            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <!-- Constraint для проверки что заполнено только одно поле из project/folder/file/block -->
+        <sql>
+            ALTER TABLE item_user_permission
+                ADD CONSTRAINT check_single_item_reference
+                    CHECK (
+                        (project_id IS NOT NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NOT NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NOT NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NOT NULL)
+                        );
+        </sql>
+    </changeSet>
+
+    <!-- Создание таблицы item_group_permission -->
+    <changeSet id="permissions-2" author="developer">
+        <createTable tableName="item_group_permission">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="group_id" type="VARCHAR(255)">
+                <constraints nullable="false" foreignKeyName="fk_group_permission_group" references="groups(id)" deleteCascade="true"/>
+            </column>
+            <column name="permission" type="SMALLINT">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_group_permission_project" references="projects(id)" deleteCascade="true"/>
+            </column>
+            <column name="folder_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_group_permission_folder" references="folders(id)" deleteCascade="true"/>
+            </column>
+            <column name="file_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_group_permission_file" references="files(id)" deleteCascade="true"/>
+            </column>
+            <column name="block_id" type="VARCHAR(255)">
+                <constraints foreignKeyName="fk_group_permission_block" references="blocks(id)" deleteCascade="true"/>
+            </column>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="TIMESTAMP"/>
+            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+
+        <!-- Constraint для проверки что заполнено только одно поле из project/folder/file/block -->
+        <sql>
+            ALTER TABLE item_group_permission
+                ADD CONSTRAINT check_group_single_item_reference
+                    CHECK (
+                        (project_id IS NOT NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NOT NULL AND file_id IS NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NOT NULL AND block_id IS NULL) OR
+                        (project_id IS NULL AND folder_id IS NULL AND file_id IS NULL AND block_id IS NOT NULL)
+                        );
+        </sql>
+    </changeSet>
+
+    <!-- Создание таблицы api_key -->
+    <changeSet id="permissions-3" author="developer">
+        <createTable tableName="api_key">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="api_key" type="VARCHAR(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="user_id" type="VARCHAR(255)">
+                <constraints nullable="false" foreignKeyName="fk_apikey_user" references="users(id)" deleteCascade="true"/>
+            </column>
+            <column name="expire_at" type="TIMESTAMP"/>
+            <column name="name" type="VARCHAR(255)"/>
+            <column name="is_deleted" type="BOOLEAN" defaultValueBoolean="false"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="TIMESTAMP"/>
+            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+</databaseChangeLog>
