@@ -6,7 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * DTO для ответа со всеми доступными элементами пользователя
@@ -19,7 +18,7 @@ public class UserAccessibleItemsResponse {
     /**
      * ID пользователя
      */
-    private UUID userId;
+    private String userId;
 
     /**
      * Доступные проекты

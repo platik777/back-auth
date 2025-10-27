@@ -6,8 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.User;
 
-import java.util.UUID;
-
 /**
  * Базовый ответ пользователя (только основные поля)
  */
@@ -16,7 +14,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class BaseUserResponse {
-    private UUID id;
+    private String id;
     private String login;
     private String email;
     private String userName;

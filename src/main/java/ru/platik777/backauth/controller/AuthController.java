@@ -16,9 +16,6 @@ import ru.platik777.backauth.mapper.UserMapper;
 import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.AuthService;
 
-import java.security.Principal;
-import java.util.UUID;
-
 /**
  * Основной контроллер аутентификации и авторизации
  *

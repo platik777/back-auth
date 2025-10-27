@@ -6,8 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.types.ItemType;
 
-import java.util.UUID;
-
 /**
  * Запрос на проверку прав доступа к элементу
  */
@@ -19,7 +17,7 @@ public class CheckItemPermissionRequest {
     /**
      * ID элемента для проверки
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента (PROJECT, FOLDER, FILE, BLOCK)

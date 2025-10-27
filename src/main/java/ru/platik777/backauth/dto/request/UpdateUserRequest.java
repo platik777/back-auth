@@ -6,7 +6,7 @@ import java.util.UUID;
 
 @Data
 public class UpdateUserRequest {
-    private UUID id;
+    private String id;
     private String login;
     private String email;
     private String userName;

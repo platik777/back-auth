@@ -15,8 +15,6 @@ import ru.platik777.backauth.exception.ResetPasswordException;
 import ru.platik777.backauth.repository.UserRepository;
 import ru.platik777.backauth.util.EmailMasker;
 
-import java.util.UUID;
-
 /**
  * Сервис восстановления пароля
  */
@@ -66,8 +64,8 @@ public class ResetPasswordService {
                     return null;
                 });
         assert user != null;
-        UUID userId = user.getId();
-        UUID tenantId = UUID.fromString(user.getTenantId());
+        String userId = user.getId();
+        String tenantId = user.getTenantId();
 
         // Если пользователь не найден, возвращаем успешный ответ (защита от перебора)
         if (userId == null) {

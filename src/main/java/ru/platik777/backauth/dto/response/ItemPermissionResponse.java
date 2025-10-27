@@ -8,7 +8,6 @@ import ru.platik777.backauth.entity.ItemUserPermission;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -27,7 +26,7 @@ public class ItemPermissionResponse {
     /**
      * ID элемента
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента

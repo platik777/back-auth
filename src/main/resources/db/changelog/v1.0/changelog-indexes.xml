@@ -7,16 +7,16 @@
 
     <!-- Создание индексов для оптимизации -->
     <changeSet id="indexes-1" author="developer">
-        <!-- Индексы для users -->
-        <createIndex tableName="users" indexName="idx_users_email">
+        <!-- Индексы для user -->
+        <createIndex tableName="user" indexName="idx_user_email">
             <column name="email"/>
         </createIndex>
 
-        <createIndex tableName="users" indexName="idx_users_login">
+        <createIndex tableName="user" indexName="idx_user_login">
             <column name="login"/>
         </createIndex>
 
-        <createIndex tableName="users" indexName="idx_users_tenant">
+        <createIndex tableName="user" indexName="idx_user_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
@@ -25,12 +25,12 @@
             <column name="owner_id"/>
         </createIndex>
 
-        <!-- Индексы для groups -->
-        <createIndex tableName="groups" indexName="idx_groups_creator">
+        <!-- Индексы для group -->
+        <createIndex tableName="group" indexName="idx_group_creator">
             <column name="creator_id"/>
         </createIndex>
 
-        <createIndex tableName="groups" indexName="idx_groups_tenant">
+        <createIndex tableName="group" indexName="idx_group_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
@@ -43,66 +43,70 @@
             <column name="user_id"/>
         </createIndex>
 
-        <!-- Индексы для folders -->
-        <createIndex tableName="folders" indexName="idx_folders_parent">
+        <!-- Индексы для folder -->
+        <createIndex tableName="folder" indexName="idx_folder_parent">
             <column name="parent_id"/>
         </createIndex>
 
-        <createIndex tableName="folders" indexName="idx_folders_tenant">
+        <createIndex tableName="folder" indexName="idx_folder_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
-        <!-- Индексы для projects -->
-        <createIndex tableName="projects" indexName="idx_projects_folder">
+        <!-- Индексы для project -->
+        <createIndex tableName="project" indexName="idx_project_folder">
             <column name="folder_id"/>
         </createIndex>
 
-        <createIndex tableName="projects" indexName="idx_projects_tenant">
+        <createIndex tableName="project" indexName="idx_project_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
-        <createIndex tableName="projects" indexName="idx_projects_type">
+        <createIndex tableName="project" indexName="idx_project_type">
             <column name="type"/>
         </createIndex>
 
-        <createIndex tableName="projects" indexName="idx_projects_status">
+        <createIndex tableName="project" indexName="idx_project_status">
             <column name="status"/>
         </createIndex>
 
-        <!-- Индексы для deltas -->
-        <createIndex tableName="deltas" indexName="idx_deltas_project">
+        <!-- Индексы для delta -->
+        <createIndex tableName="delta" indexName="idx_delta_project">
             <column name="project_id"/>
         </createIndex>
 
-        <createIndex tableName="deltas" indexName="idx_deltas_project_version">
+        <createIndex tableName="delta" indexName="idx_delta_project_version">
             <column name="project_id"/>
             <column name="number_version"/>
         </createIndex>
 
-        <!-- Индексы для blocks -->
-        <createIndex tableName="blocks" indexName="idx_blocks_category">
+        <!-- Индексы для block -->
+        <createIndex tableName="block" indexName="idx_block_category">
             <column name="category_id"/>
         </createIndex>
 
-        <createIndex tableName="blocks" indexName="idx_blocks_tenant">
+        <createIndex tableName="block" indexName="idx_block_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
-        <!-- Индексы для images -->
-        <createIndex tableName="images" indexName="idx_images_block">
-            <column name="block_id"/>
-        </createIndex>
-
-        <createIndex tableName="images" indexName="idx_images_active">
-            <column name="is_active"/>
-        </createIndex>
-
-        <!-- Индексы для files -->
-        <createIndex tableName="files" indexName="idx_files_folder">
+        <createIndex tableName="block" indexName="idx_block_folder">
             <column name="folder_id"/>
         </createIndex>
 
-        <createIndex tableName="files" indexName="idx_files_tenant">
+        <!-- Индексы для image -->
+        <createIndex tableName="image" indexName="idx_image_block">
+            <column name="block_id"/>
+        </createIndex>
+
+        <createIndex tableName="image" indexName="idx_image_active">
+            <column name="is_active"/>
+        </createIndex>
+
+        <!-- Индексы для file -->
+        <createIndex tableName="file" indexName="idx_file_folder">
+            <column name="folder_id"/>
+        </createIndex>
+
+        <createIndex tableName="file" indexName="idx_file_tenant">
             <column name="tenant_id"/>
         </createIndex>
 
@@ -160,18 +164,18 @@
 
     <!-- GIN индексы для JSONB полей -->
     <changeSet id="indexes-2" author="developer">
-        <sql>CREATE INDEX idx_users_settings ON users USING GIN (settings);</sql>
-        <sql>CREATE INDEX idx_projects_data ON projects USING GIN (data);</sql>
-        <sql>CREATE INDEX idx_blocks_data ON blocks USING GIN (data);</sql>
-        <sql>CREATE INDEX idx_deltas_delta ON deltas USING GIN (delta);</sql>
+        <sql>CREATE INDEX idx_user_settings ON user USING GIN (settings);</sql>
+        <sql>CREATE INDEX idx_project_data ON project USING GIN (data);</sql>
+        <sql>CREATE INDEX idx_block_data ON block USING GIN (data);</sql>
+        <sql>CREATE INDEX idx_delta_delta ON delta USING GIN (delta);</sql>
     </changeSet>
 
     <!-- GIN индексы для массивов -->
     <changeSet id="indexes-3" author="developer">
-        <sql>CREATE INDEX idx_folders_all_parant_ids ON folders USING GIN (all_parant_ids);</sql>
-        <sql>CREATE INDEX idx_projects_all_parant_ids ON projects USING GIN (all_parant_ids);</sql>
-        <sql>CREATE INDEX idx_blocks_all_parant_ids ON blocks USING GIN (all_parant_ids);</sql>
-        <sql>CREATE INDEX idx_files_all_parant_ids ON files USING GIN (all_parant_ids);</sql>
+        <sql>CREATE INDEX idx_folder_all_parent_ids ON folder USING GIN (all_parent_ids);</sql>
+        <sql>CREATE INDEX idx_project_all_parent_ids ON project USING GIN (all_parent_ids);</sql>
+        <sql>CREATE INDEX idx_block_all_parent_ids ON block USING GIN (all_parent_ids);</sql>
+        <sql>CREATE INDEX idx_file_all_parent_ids ON file USING GIN (all_parent_ids);</sql>
     </changeSet>
 
     <!-- Уникальные partial индексы для гарантии уникальности permission на item для пользователя -->

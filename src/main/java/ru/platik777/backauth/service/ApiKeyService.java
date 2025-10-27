@@ -23,7 +23,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -52,7 +51,7 @@ public class ApiKeyService {
      * @throws ApiKeyException если создание не удалось
      */
     @Transactional
-    public ApiKeyResponse createApiKey(UUID userId, String name, String expireAt) {
+    public ApiKeyResponse createApiKey(String userId, String name, String expireAt) {
         log.debug("Creating API key for userId: {}, name: {}", userId, name);
 
         validateUserId(userId);
@@ -105,7 +104,7 @@ public class ApiKeyService {
      * @throws ApiKeyException если ключ не найден
      */
     @Transactional
-    public StatusResponse deleteApiKey(UUID userId, String apiKey) {
+    public StatusResponse deleteApiKey(String userId, String apiKey) {
         log.debug("Deleting API key for userId: {}", userId);
 
         validateUserId(userId);
@@ -135,7 +134,7 @@ public class ApiKeyService {
      * @return Список активных API ключей
      */
     @Transactional(readOnly = true)
-    public List<ApiKeyResponse> getApiKeys(UUID userId) {
+    public List<ApiKeyResponse> getApiKeys(String userId) {
         log.debug("Getting API keys for userId: {}", userId);
 
         validateUserId(userId);
@@ -198,7 +197,7 @@ public class ApiKeyService {
                 .build();
     }
 
-    private void validateUserId(UUID userId) {
+    private void validateUserId(String userId) {
         if (userId == null) {
             throw new ApiKeyException("Invalid userId", "userId");
         }

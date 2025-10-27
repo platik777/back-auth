@@ -14,7 +14,6 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -128,7 +127,7 @@ public class RoleService {
      * @return CompletableFuture для отслеживания выполнения
      */
     @Async
-    public CompletableFuture<Void> setTariffAsync(UUID userId, List<Object> useModules) {
+    public CompletableFuture<Void> setTariffAsync(String userId, List<Object> useModules) {
         log.debug("Setting tariff asynchronously for userId: {}", userId);
 
         // Проверка входных данных
@@ -205,7 +204,7 @@ public class RoleService {
      * @param userId ID пользователя
      * @return true если пользователь администратор
      */
-    public boolean checkRoleAdmin(UUID userId) {
+    public boolean checkRoleAdmin(String userId) {
         log.debug("Checking admin role for userId: {}", userId);
 
         if (userId == null) {
@@ -279,7 +278,7 @@ public class RoleService {
      * Go: bodyStruct := struct { UserId int; UseModules []any }
      */
     private record TariffRequest(
-            UUID userId,
+            String userId,
             List<Object> useModules
     ) {}
 

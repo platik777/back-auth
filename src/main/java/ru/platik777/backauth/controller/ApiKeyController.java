@@ -16,7 +16,6 @@ import ru.platik777.backauth.security.CurrentUser;
 import ru.platik777.backauth.service.ApiKeyService;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Контроллер управления API ключами

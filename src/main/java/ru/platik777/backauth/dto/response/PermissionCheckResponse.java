@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
  * DTO для ответа на проверку прав доступа
  */
@@ -18,12 +16,12 @@ public class PermissionCheckResponse {
     /**
      * ID пользователя
      */
-    private UUID userId;
+    private String userId;
 
     /**
      * ID элемента
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента

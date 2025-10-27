@@ -11,17 +11,17 @@ import java.util.List;
 import java.util.UUID;
 
 @Repository
-public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
+public interface ApiKeyRepository extends JpaRepository<ApiKey, String> {
 
     /**
      * GetApiKeys - получение активных API ключей пользователя
      */
-    List<ApiKey> findByUserIdAndIsDeletedFalse(UUID user_id);
+    List<ApiKey> findByUserIdAndIsDeletedFalse(String user_id);
 
     /**
      * CheckApiKey - проверка существования активного API ключа
      */
-    boolean existsByApiKeyAndUserIdAndIsDeletedFalse(String apiKey, UUID user_id);
+    boolean existsByApiKeyAndUserIdAndIsDeletedFalse(String apiKey, String user_id);
 
     /**
      * DeleteApiKey - мягкое удаление API ключа
@@ -29,5 +29,5 @@ public interface ApiKeyRepository extends JpaRepository<ApiKey, UUID> {
     @Modifying
     @Query("UPDATE ApiKey ak SET ak.isDeleted = true " +
             "WHERE ak.apiKey = :apiKey AND ak.user.id = :userId AND ak.isDeleted = false")
-    int softDeleteByApiKeyAndUserId(@Param("apiKey") String apiKey, @Param("userId") UUID userId);
+    int softDeleteByApiKeyAndUserId(@Param("apiKey") String apiKey, @Param("userId") String userId);
 }

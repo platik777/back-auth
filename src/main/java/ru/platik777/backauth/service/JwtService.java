@@ -18,7 +18,6 @@ import java.time.ZoneId;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 
 /**
  * Сервис работы с JWT токенами
@@ -52,7 +51,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с 4 токенами
      */
-    public TokenResponse createAllTokens(UUID userId, UUID tenantId) {
+    public TokenResponse createAllTokens(String userId, String tenantId) {
         log.debug("Creating all tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -74,7 +73,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createAppTokens(UUID userId, UUID tenantId) {
+    public Map<String, String> createAppTokens(String userId, String tenantId) {
         log.debug("Creating App tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -109,7 +108,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Map с accessToken и refreshToken
      */
-    public Map<String, String> createBaseTokens(UUID userId, UUID tenantId) {
+    public Map<String, String> createBaseTokens(String userId, String tenantId) {
         log.debug("Creating Base tokens for userId: {}", userId);
 
         validateUserId(userId);
@@ -144,7 +143,7 @@ public class JwtService {
      * @param userId ID пользователя
      * @return Reset password токен
      */
-    public String createResetPasswordToken(UUID userId, UUID tenantId) {
+    public String createResetPasswordToken(String userId, String tenantId) {
         log.debug("Creating reset password token for userId: {}", userId);
 
         validateUserId(userId);
@@ -168,7 +167,7 @@ public class JwtService {
      * @param expireAt Дата истечения
      * @return API ключ токен
      */
-    public String createApiKeyToken(UUID userId, LocalDateTime expireAt) {
+    public String createApiKeyToken(String userId, LocalDateTime expireAt) {
         log.debug("Creating API key token for userId: {} with expiration: {}",
                 userId, expireAt);
 
@@ -226,15 +225,12 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            String userIdStr = claims.get("userId", String.class);
-            String tenantIdStr = claims.get("tenant_id", String.class);
+            String userId = claims.get("userId", String.class);
+            String tenantId = claims.get("tenant_id", String.class);
 
-            if (userIdStr == null) {
+            if (userId == null) {
                 throw new JwtException("UserId is empty in token");
             }
-
-            UUID userId = UUID.fromString(userIdStr);
-            UUID tenantId = tenantIdStr != null ? UUID.fromString(tenantIdStr) : null;
 
             log.debug("Token parsed successfully. UserId: {}, TenantId: {}", userId, tenantId);
             return new AuthenticatedUser(userId, tenantId);
@@ -290,7 +286,7 @@ public class JwtService {
      * @param tokenType Тип токена (для отладки и claims)
      * @return JWT токен
      */
-    private String createToken(UUID userId, UUID tenantId, long validityMillis,
+    private String createToken(String userId, String tenantId, long validityMillis,
                                String signingKey, TokenType tokenType) {
 
         validateUserId(userId);
@@ -360,7 +356,7 @@ public class JwtService {
     /**
      * Валидация userId
      */
-    private void validateUserId(UUID userId) {
+    private void validateUserId(String userId) {
         if (userId == null) {
             throw new IllegalArgumentException("Invalid userId");
         }

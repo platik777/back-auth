@@ -5,7 +5,6 @@ import lombok.*;
 import lombok.experimental.SuperBuilder;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table(name = "api_key")
@@ -18,7 +17,7 @@ public class ApiKey extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
 
     @Column(name = "api_key", nullable = false, unique = true, length = 255)
     private String apiKey;
@@ -26,9 +25,6 @@ public class ApiKey extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
-
-    @Column(name = "created_at")
-    private Instant createdAt;
 
     @Column(name = "expire_at")
     private Instant expireAt;

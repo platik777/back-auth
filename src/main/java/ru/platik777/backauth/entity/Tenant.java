@@ -3,12 +3,8 @@ package ru.platik777.backauth.entity;
 import jakarta.persistence.*;
 import lombok.*;
 import lombok.experimental.SuperBuilder;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
-import java.util.List;
-import java.util.UUID;
 
 @Entity
 @Table(name = "tenant")
@@ -21,7 +17,7 @@ public class Tenant extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id", nullable = false)
@@ -77,8 +73,4 @@ public class Tenant extends BaseEntity {
 
     @Column(name = "license_issue_date")
     private LocalDate licenseIssueDate;
-
-    @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "users_list", columnDefinition = "uuid[]")
-    private List<UUID> usersList;
 }

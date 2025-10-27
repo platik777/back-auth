@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.types.ItemType;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Запрос на обновление прав доступа пользователя
@@ -20,12 +19,12 @@ public class UpdatePermissionRequest {
     /**
      * ID пользователя, чьи права обновляются
      */
-    private UUID targetUserId;
+    private String targetUserId;
 
     /**
      * ID элемента
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента

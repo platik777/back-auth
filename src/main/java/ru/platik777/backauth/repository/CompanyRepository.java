@@ -11,11 +11,11 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface CompanyRepository extends JpaRepository<Tenant, UUID> {
+public interface CompanyRepository extends JpaRepository<Tenant, String> {
 
     /**
      * GetCompaniesOfUser - получение компаний пользователя по owner_id
      * Соответствует методу GetCompaniesOfUser из Go
      */
-    List<Tenant> findByOwnerId(UUID ownerId);
+    List<Tenant> findByOwnerId(String ownerId);
 }

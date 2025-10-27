@@ -15,5 +15,5 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ResetPasswordCheckResponse {
-    private UUID userId;
+    private String userId;
 }

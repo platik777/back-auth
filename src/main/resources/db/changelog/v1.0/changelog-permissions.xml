@@ -12,29 +12,29 @@
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="user_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_permission_user" references="users(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_permission_user" references="user(id)" deleteCascade="true"/>
             </column>
             <column name="permission" type="SMALLINT">
                 <constraints nullable="false"/>
             </column>
             <column name="project_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_permission_project" references="projects(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_permission_project" references="project(id)" deleteCascade="true"/>
             </column>
             <column name="folder_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_permission_folder" references="folders(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_permission_folder" references="folder(id)" deleteCascade="true"/>
             </column>
             <column name="file_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_permission_file" references="files(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_permission_file" references="file(id)" deleteCascade="true"/>
             </column>
             <column name="block_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_permission_block" references="blocks(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_permission_block" references="block(id)" deleteCascade="true"/>
             </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
 
@@ -58,29 +58,29 @@
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="group_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_group_permission_group" references="groups(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_group_permission_group" references="group(id)" deleteCascade="true"/>
             </column>
             <column name="permission" type="SMALLINT">
                 <constraints nullable="false"/>
             </column>
             <column name="project_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_group_permission_project" references="projects(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_group_permission_project" references="project(id)" deleteCascade="true"/>
             </column>
             <column name="folder_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_group_permission_folder" references="folders(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_group_permission_folder" references="folder(id)" deleteCascade="true"/>
             </column>
             <column name="file_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_group_permission_file" references="files(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_group_permission_file" references="file(id)" deleteCascade="true"/>
             </column>
             <column name="block_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_group_permission_block" references="blocks(id)" deleteCascade="true"/>
+                <constraints foreignKeyName="fk_group_permission_block" references="block(id)" deleteCascade="true"/>
             </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
 
@@ -107,7 +107,7 @@
                 <constraints nullable="false" unique="true"/>
             </column>
             <column name="user_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_apikey_user" references="users(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_apikey_user" references="user(id)" deleteCascade="true"/>
             </column>
             <column name="expire_at" type="TIMESTAMP"/>
             <column name="name" type="VARCHAR(255)"/>
@@ -116,8 +116,8 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>

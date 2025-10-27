@@ -7,10 +7,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.List;
-import java.util.UUID;
 
 @Entity
-@Table(name = "files")
+@Table(name = "file")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,11 +19,27 @@ public class File extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
+
+    @Lob
+    @Column(columnDefinition = "BYTEA")
+    private byte[] file;
+
+    @Column(nullable = false, length = 255)
+    private String name;
+
+    @Column(length = 100)
+    private String type;
+
+    @Column(name = "content_type", length = 100)
+    private String contentType;
+
+    @Column
+    private Long size;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "all_parant_ids", columnDefinition = "uuid[]")
-    private List<UUID> allParantIds;
+    @Column(name = "all_parent_ids", columnDefinition = "text[]")
+    private List<String> allParentIds;
 
     @Column
     private Integer rank;

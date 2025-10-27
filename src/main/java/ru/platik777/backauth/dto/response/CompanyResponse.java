@@ -18,8 +18,8 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class CompanyResponse {
-    private Integer companyId;
-    private Integer ownerId;
+    private String companyId;
+    private String ownerId;
     private String fullTitle;
     private String country;
     private String legalAddress;
@@ -38,7 +38,6 @@ public class CompanyResponse {
     private String licenseNumber;
     private String licenseIssueDate;
     private LocalDateTime createdAt;
-    private List<UUID> usersList;
 
     public static CompanyResponse fromCompany(Tenant tenant) {
         return CompanyResponse.builder()
@@ -60,7 +59,6 @@ public class CompanyResponse {
                 .licenseNumber(tenant.getLicenseNumber())
                 .licenseIssueDate(String.valueOf(tenant.getLicenseIssueDate()))
                 .createdAt(LocalDateTime.from(tenant.getCreatedAt()))
-                .usersList(tenant.getUsersList())
                 .build();
     }
 }

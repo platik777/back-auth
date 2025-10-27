@@ -7,5 +7,5 @@ import ru.platik777.backauth.entity.File;
 import java.util.UUID;
 
 @Repository
-public interface FileRepository extends JpaRepository<File, UUID> {
+public interface FileRepository extends JpaRepository<File, String> {
 }

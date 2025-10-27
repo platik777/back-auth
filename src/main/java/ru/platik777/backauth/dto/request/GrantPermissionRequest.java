@@ -7,7 +7,6 @@ import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.types.ItemType;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Запрос на выдачу прав доступа пользователю
@@ -20,12 +19,12 @@ public class GrantPermissionRequest {
     /**
      * ID пользователя, которому выдаются права
      */
-    private UUID targetUserId;
+    private String targetUserId;
 
     /**
      * ID элемента (project/folder/file/block)
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента

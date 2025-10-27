@@ -7,5 +7,5 @@ import ru.platik777.backauth.entity.Folder;
 import java.util.UUID;
 
 @Repository
-public interface FolderRepository extends JpaRepository<Folder, UUID> {
+public interface FolderRepository extends JpaRepository<Folder, String> {
 }

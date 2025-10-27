@@ -6,8 +6,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import ru.platik777.backauth.entity.types.ItemType;
 
-import java.util.UUID;
-
 /**
  * Запрос на отзыв прав доступа у пользователя
  */
@@ -19,12 +17,12 @@ public class RevokePermissionRequest {
     /**
      * ID пользователя, у которого отзываются права
      */
-    private UUID targetUserId;
+    private String targetUserId;
 
     /**
      * ID элемента
      */
-    private UUID itemId;
+    private String itemId;
 
     /**
      * Тип элемента

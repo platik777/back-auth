@@ -15,7 +15,6 @@ import ru.platik777.backauth.repository.*;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
@@ -55,7 +54,7 @@ public class AuthService {
             log.debug("User: {}", user);
 
             User savedUser = userRepository.save(user);
-            UUID userId = savedUser.getId();
+            String userId = savedUser.getId();
 
             // 6. Асинхронная установка тарифа
             // if (modules != null && !modules.isEmpty()) {
@@ -115,7 +114,7 @@ public class AuthService {
             if (!user.getPasswordHash().equals(passwordHash)) {
                 throw new AuthException("Invalid login or password");
             }
-            TokenResponse tokens = jwtService.createAllTokens(user.getId(), UUID.fromString(user.getTenantId()));
+            TokenResponse tokens = jwtService.createAllTokens(user.getId(), user.getTenantId());
 
             log.info("User signed in successfully: userId={}, login={}", user.getId(), login);
 
@@ -159,7 +158,7 @@ public class AuthService {
     /**
      * Обновление app токенов через base refresh token
      */
-    public TokenResponse refreshAppTokenByBaseToken(UUID userId, UUID tenantId) {
+    public TokenResponse refreshAppTokenByBaseToken(String userId, String tenantId) {
         log.debug("RefreshAppTokenByBaseToken started");
 
         try {
@@ -181,7 +180,7 @@ public class AuthService {
     /**
      * Обновление app токенов
      */
-    public TokenResponse refreshAppToken(UUID userId, UUID tenantId) {
+    public TokenResponse refreshAppToken(String userId, String tenantId) {
         log.debug("RefreshAppToken started");
 
         try {
@@ -204,7 +203,7 @@ public class AuthService {
     /**
      * Обновление base токенов
      */
-    public TokenResponse refreshBaseToken(UUID userId, UUID tenantId) {
+    public TokenResponse refreshBaseToken(String userId, String tenantId) {
         log.debug("RefreshBaseToken started");
 
         try {
@@ -277,7 +276,7 @@ public class AuthService {
      * Редактирование пользователя
      */
     @Transactional
-    public UserResponse editUser(UUID userId, String currentPassword, String newPassword,
+    public UserResponse editUser(String userId, String currentPassword, String newPassword,
                                  String email, String phone, String userName, String login) {
         // TODO: реализовать
         return null;
@@ -287,7 +286,7 @@ public class AuthService {
      * Получение данных пользователя
      */
     @Transactional(readOnly = true)
-    public UserResponse getUser(UUID userId) {
+    public UserResponse getUser(String userId) {
         log.debug("GetUser started for userId: {}", userId);
 
         User user = userRepository.findById(userId)
@@ -301,7 +300,7 @@ public class AuthService {
      * Получение базовых данных пользователя
      */
     @Transactional(readOnly = true)
-    public BaseUserResponse getBaseUser(UUID userId) {
+    public BaseUserResponse getBaseUser(String userId) {
         log.debug("GetBaseUser started for userId: {}", userId);
 
         User user = userRepository.findById(userId)
@@ -314,7 +313,7 @@ public class AuthService {
      * Получение компаний пользователя
      */
     @Transactional(readOnly = true)
-    public CompaniesResponse getCompanies(UUID userId) {
+    public CompaniesResponse getCompanies(String userId) {
         log.debug("GetCompanies started for userId: {}", userId);
 
         List<Tenant> companies = companyRepository.findByOwnerId(userId);
@@ -331,7 +330,7 @@ public class AuthService {
      * Проверка роли администратора
      */
     @Transactional(readOnly = true)
-    public boolean checkRoleAdmin(UUID userId) {
+    public boolean checkRoleAdmin(String userId) {
         log.debug("CheckRoleAdmin for userId: {}", userId);
         return roleService.checkRoleAdmin(userId);
     }

@@ -10,9 +10,9 @@
         <sql>CREATE EXTENSION IF NOT EXISTS "uuid-ossp";</sql>
     </changeSet>
 
-    <!-- Создание таблицы users -->
+    <!-- Создание таблицы user -->
     <changeSet id="initial-1" author="developer">
-        <createTable tableName="users">
+        <createTable tableName="user">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -35,8 +35,8 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
@@ -48,7 +48,7 @@
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="owner_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_tenant_owner" references="users(id)"/>
+                <constraints nullable="false" foreignKeyName="fk_tenant_owner" references="user(id)"/>
             </column>
             <column name="bank_name" type="VARCHAR(255)"/>
             <column name="account_number" type="VARCHAR(100)"/>
@@ -71,15 +71,15 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
     <!-- Создание таблицы group -->
     <changeSet id="initial-3" author="developer">
-        <createTable tableName="groups">
+        <createTable tableName="group">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -87,33 +87,33 @@
                 <constraints nullable="false"/>
             </column>
             <column name="creator_id" type="VARCHAR(255)">
-                <constraints foreignKeyName="fk_group_creator" references="users(id)"/>
+                <constraints foreignKeyName="fk_group_creator" references="user(id)"/>
             </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
-    <!-- Создание таблицы group_user (связь многие-ко-многим между users и groups) -->
+    <!-- Создание таблицы group_user (связь многие-ко-многим между user и group) -->
     <changeSet id="initial-4" author="developer">
         <createTable tableName="group_user">
             <column name="group_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_group_user_group" references="groups(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_group_user_group" references="group(id)" deleteCascade="true"/>
             </column>
             <column name="user_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_group_user_user" references="users(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_group_user_user" references="user(id)" deleteCascade="true"/>
             </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
 
@@ -121,9 +121,9 @@
         <addPrimaryKey tableName="group_user" columnNames="group_id, user_id" constraintName="pk_group_user"/>
     </changeSet>
 
-    <!-- Создание таблицы folders -->
+    <!-- Создание таблицы folder -->
     <changeSet id="initial-5" author="developer">
-        <createTable tableName="folders">
+        <createTable tableName="folder">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -131,7 +131,7 @@
                 <constraints nullable="false"/>
             </column>
             <column name="parent_id" type="VARCHAR(255)"/>
-            <column name="all_parant_ids" type="TEXT[]"/>
+            <column name="all_parent_ids" type="TEXT[]"/>
             <column name="rank" type="INTEGER"/>
             <column name="has_children" type="BOOLEAN" defaultValueBoolean="false"/>
             <column name="item_types" type="TEXT[]"/>
@@ -139,57 +139,57 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
 
         <addForeignKeyConstraint
-                baseTableName="folders"
+                baseTableName="folder"
                 baseColumnNames="parent_id"
                 constraintName="fk_folder_parent"
-                referencedTableName="folders"
+                referencedTableName="folder"
                 referencedColumnNames="id"
                 onDelete="CASCADE"/>
     </changeSet>
 
-    <!-- Создание таблицы projects -->
+    <!-- Создание таблицы project -->
     <changeSet id="initial-6" author="developer">
-        <createTable tableName="projects">
+        <createTable tableName="project">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="folder_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_project_folder" references="folders(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_project_folder" references="folder(id)" deleteCascade="true"/>
             </column>
-            <column name="all_parant_ids" type="TEXT[]"/>
+            <column name="all_parent_ids" type="TEXT[]"/>
             <column name="rank" type="INTEGER"/>
             <column name="name" type="VARCHAR(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="status" type="BOOLEAN"/>
+            <column name="status" type="VARCHAR(50)"/>
             <column name="data" type="JSONB"/>
             <column name="favourite" type="BOOLEAN" defaultValueBoolean="false"/>
             <column name="preview" type="VARCHAR(500)"/>
-            <column name="type" type="VARCHAR(100)"/>
+            <column name="type" type="VARCHAR(50)"/>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
-    <!-- Создание таблицы deltas -->
+    <!-- Создание таблицы delta -->
     <changeSet id="initial-7" author="developer">
-        <createTable tableName="deltas">
+        <createTable tableName="delta">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="project_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_delta_project" references="projects(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_delta_project" references="project(id)" deleteCascade="true"/>
             </column>
             <column name="number_version" type="INTEGER">
                 <constraints nullable="false"/>
@@ -201,19 +201,19 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
-    <!-- Создание таблицы blocks -->
+    <!-- Создание таблицы block -->
     <changeSet id="initial-8" author="developer">
-        <createTable tableName="blocks">
+        <createTable tableName="block">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
-            <column name="all_parant_ids" type="TEXT[]"/>
+            <column name="all_parent_ids" type="TEXT[]"/>
             <column name="rank" type="INTEGER"/>
             <column name="name" type="VARCHAR(255)"/>
             <column name="data" type="JSONB"/>
@@ -221,24 +221,27 @@
             <column name="locale" type="VARCHAR(10)"/>
             <column name="category_id" type="VARCHAR(255)"/>
             <column name="image" type="VARCHAR(500)"/>
+            <column name="folder_id" type="VARCHAR(255)">
+                <constraints nullable="false" foreignKeyName="fk_block_folder" references="folder(id)" deleteCascade="true"/>
+            </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
     <!-- Создание таблицы image -->
     <changeSet id="initial-9" author="developer">
-        <createTable tableName="images">
+        <createTable tableName="image">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="block_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_image_block" references="blocks(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_image_block" references="block(id)" deleteCascade="true"/>
             </column>
             <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
             <column name="file" type="BYTEA"/>
@@ -246,15 +249,15 @@
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>
 
-    <!-- Создание таблицы files -->
+    <!-- Создание таблицы file -->
     <changeSet id="initial-10" author="developer">
-        <createTable tableName="files">
+        <createTable tableName="file">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
@@ -265,17 +268,17 @@
             <column name="type" type="VARCHAR(100)"/>
             <column name="content_type" type="VARCHAR(100)"/>
             <column name="size" type="BIGINT"/>
-            <column name="all_parant_ids" type="TEXT[]"/>
+            <column name="all_parent_ids" type="TEXT[]"/>
             <column name="rank" type="INTEGER"/>
             <column name="folder_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_file_folder" references="folders(id)" deleteCascade="true"/>
+                <constraints nullable="false" foreignKeyName="fk_file_folder" references="folder(id)" deleteCascade="true"/>
             </column>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
             <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="TIMESTAMP"/>
-            <column name="updated_by" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
             <column name="tenant_id" type="VARCHAR(255)"/>
         </createTable>
     </changeSet>

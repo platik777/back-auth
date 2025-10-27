@@ -10,6 +10,6 @@ import java.util.UUID;
 @Data
 @AllArgsConstructor
 public class AuthenticatedUser {
-    private UUID userId;
-    private UUID tenantId;
+    private String userId;
+    private String tenantId;
 }

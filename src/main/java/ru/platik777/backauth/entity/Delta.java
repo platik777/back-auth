@@ -7,10 +7,9 @@ import lombok.experimental.SuperBuilder;
 import org.hibernate.annotations.Type;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Entity
-@Table(name = "deltas")
+@Table(name = "delta")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,7 +19,7 @@ public class Delta extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "project_id", nullable = false)

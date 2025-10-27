@@ -5,8 +5,6 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.UUID;
-
 /**
  * Ответ на проверку API ключа
  */
@@ -15,5 +13,5 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ApiKeyAuthResponse {
-    private UUID userId;
+    private String userId;
 }

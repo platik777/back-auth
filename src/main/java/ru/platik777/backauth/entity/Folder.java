@@ -7,10 +7,9 @@ import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
 import java.util.List;
-import java.util.UUID;
 
 @Entity
-@Table(name = "folders")
+@Table(name = "folder")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,7 +19,7 @@ public class Folder extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -30,8 +29,8 @@ public class Folder extends BaseEntity {
     private Folder parent;
 
     @JdbcTypeCode(SqlTypes.ARRAY)
-    @Column(name = "all_parant_ids", columnDefinition = "uuid[]")
-    private List<UUID> allParantIds;
+    @Column(name = "all_parent_ids", columnDefinition = "text[]")
+    private List<String> allParentIds;
 
     @Column
     private Integer rank;

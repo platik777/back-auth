@@ -52,8 +52,8 @@ public class ItemPermissionService {
      * @throws IllegalArgumentException если данные невалидны
      */
     @Transactional
-    public ItemUserPermission grantPermission(UUID granterId, UUID targetUserId,
-                                              UUID itemId, ItemType itemType,
+    public ItemUserPermission grantPermission(String granterId, String targetUserId,
+                                              String itemId, ItemType itemType,
                                               short permissions) {
         log.info("Granting permission: granter={}, target={}, item={}, type={}, permissions={}",
                 granterId, targetUserId, itemId, itemType, permissions);
@@ -110,8 +110,8 @@ public class ItemPermissionService {
      * @return обновленная запись прав доступа
      */
     @Transactional
-    public ItemUserPermission updatePermission(UUID updaterId, UUID targetUserId,
-                                               UUID itemId, ItemType itemType,
+    public ItemUserPermission updatePermission(String updaterId, String targetUserId,
+                                               String itemId, ItemType itemType,
                                                short newPermissions) {
         log.info("Updating permission: updater={}, target={}, item={}, newPermissions={}",
                 updaterId, targetUserId, itemId, newPermissions);
@@ -135,10 +135,10 @@ public class ItemPermissionService {
                         "Permission not found for user " + targetUserId + " and item " + itemId
                 ));
 
-        short oldPermissions = permission.getPermissions();
+        short oldPermissions = permission.getPermission();
 
         // Обновляем права
-        permission.setPermissions(newPermissions);
+        permission.setPermission(newPermissions);
         ItemUserPermission updated = permissionRepository.save(permission);
 
         log.info("Permission updated successfully: id={}, user={}, item={}, oldPermissions={}, newPermissions={}",
@@ -156,8 +156,8 @@ public class ItemPermissionService {
      * @param itemType тип элемента
      */
     @Transactional
-    public void revokePermission(UUID revokerId, UUID targetUserId,
-                                 UUID itemId, ItemType itemType) {
+    public void revokePermission(String revokerId, String targetUserId,
+                                 String itemId, ItemType itemType) {
         log.info("Revoking permission: revoker={}, target={}, item={}, type={}",
                 revokerId, targetUserId, itemId, itemType);
 
@@ -191,7 +191,7 @@ public class ItemPermissionService {
      * Получить эффективные права доступа к проекту (с учетом наследования от папок)
      */
     @Transactional(readOnly = true)
-    public Short getProjectPermissions(UUID userId, UUID projectId) {
+    public Short getProjectPermissions(String userId, String projectId) {
         log.debug("Getting project permissions for user={}, project={}", userId, projectId);
 
         // Теперь возвращается Short напрямую, а не ItemUserPermission
@@ -207,7 +207,7 @@ public class ItemPermissionService {
      * Получить эффективные права доступа к блоку
      */
     @Transactional(readOnly = true)
-    public Short getBlockPermissions(UUID userId, UUID blockId) {
+    public Short getBlockPermissions(String userId, String blockId) {
         log.debug("Getting block permissions for user={}, block={}", userId, blockId);
 
         Short permissions = permissionRepository.findEffectivePermissionForBlock(userId, blockId);
@@ -222,7 +222,7 @@ public class ItemPermissionService {
      * Получить эффективные права доступа к файлу
      */
     @Transactional(readOnly = true)
-    public Short getFilePermissions(UUID userId, UUID fileId) {
+    public Short getFilePermissions(String userId, String fileId) {
         log.debug("Getting file permissions for user={}, file={}", userId, fileId);
 
         Short permissions = permissionRepository.findEffectivePermissionForFile(userId, fileId);
@@ -237,7 +237,7 @@ public class ItemPermissionService {
      * Получить эффективные права доступа к папке
      */
     @Transactional(readOnly = true)
-    public Short getFolderPermissions(UUID userId, UUID folderId) {
+    public Short getFolderPermissions(String userId, String folderId) {
         log.debug("Getting folder permissions for user={}, folder={}", userId, folderId);
 
         Short permissions = permissionRepository.findEffectivePermissionForFolder(userId, folderId);
@@ -255,7 +255,7 @@ public class ItemPermissionService {
      * Использует эффективные права с учетом наследования
      */
     @Transactional(readOnly = true)
-    public boolean hasPermission(UUID userId, UUID itemId, ItemType itemType, int requiredPermissions) {
+    public boolean hasPermission(String userId, String itemId, ItemType itemType, int requiredPermissions) {
         log.debug("Checking permission for userId: {}, itemId: {}, itemType: {}, requiredPermissions: {}",
                 userId, itemId, itemType, requiredPermissions);
 
@@ -287,7 +287,7 @@ public class ItemPermissionService {
      * Проверить наличие прав READ
      */
     @Transactional(readOnly = true)
-    public boolean hasReadPermission(UUID userId, UUID itemId, ItemType itemType) {
+    public boolean hasReadPermission(String userId, String itemId, ItemType itemType) {
         return hasPermission(userId, itemId, itemType, Permission.READ.getValue());
     }
 
@@ -295,7 +295,7 @@ public class ItemPermissionService {
      * Проверить наличие прав READ + WRITE
      */
     @Transactional(readOnly = true)
-    public boolean hasReadWritePermission(UUID userId, UUID itemId, ItemType itemType) {
+    public boolean hasReadWritePermission(String userId, String itemId, ItemType itemType) {
         int permissions = Permission.combine(Permission.READ, Permission.WRITE);
         return hasPermission(userId, itemId, itemType, permissions);
     }
@@ -304,7 +304,7 @@ public class ItemPermissionService {
      * Проверить наличие прав READ + EXECUTE
      */
     @Transactional(readOnly = true)
-    public boolean hasReadExecutePermission(UUID userId, UUID itemId, ItemType itemType) {
+    public boolean hasReadExecutePermission(String userId, String itemId, ItemType itemType) {
         int permissions = Permission.combine(Permission.READ, Permission.EXECUTE);
         return hasPermission(userId, itemId, itemType, permissions);
     }
@@ -313,7 +313,7 @@ public class ItemPermissionService {
      * Проверить наличие всех прав (READ + WRITE + EXECUTE)
      */
     @Transactional(readOnly = true)
-    public boolean hasFullPermission(UUID userId, UUID itemId, ItemType itemType) {
+    public boolean hasFullPermission(String userId, String itemId, ItemType itemType) {
         int permissions = Permission.combine(Permission.READ, Permission.WRITE, Permission.EXECUTE);
         return hasPermission(userId, itemId, itemType, permissions);
     }
@@ -324,7 +324,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на чтение проекта
      */
     @Transactional(readOnly = true)
-    public boolean canReadProject(UUID userId, UUID projectId) {
+    public boolean canReadProject(String userId, String projectId) {
         return permissionRepository.hasProjectPermission(userId, projectId, (short) 1);
     }
 
@@ -332,7 +332,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на запись в проект
      */
     @Transactional(readOnly = true)
-    public boolean canWriteProject(UUID userId, UUID projectId) {
+    public boolean canWriteProject(String userId, String projectId) {
         return permissionRepository.hasProjectPermission(userId, projectId, (short) 3); // READ + WRITE
     }
 
@@ -340,7 +340,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на выполнение проекта
      */
     @Transactional(readOnly = true)
-    public boolean canExecuteProject(UUID userId, UUID projectId) {
+    public boolean canExecuteProject(String userId, String projectId) {
         return permissionRepository.hasProjectPermission(userId, projectId, (short) 5); // READ + EXECUTE
     }
 
@@ -348,7 +348,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на чтение блока
      */
     @Transactional(readOnly = true)
-    public boolean canReadBlock(UUID userId, UUID blockId) {
+    public boolean canReadBlock(String userId, String blockId) {
         return permissionRepository.hasBlockPermission(userId, blockId, (short) 1);
     }
 
@@ -356,7 +356,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на запись в блок
      */
     @Transactional(readOnly = true)
-    public boolean canWriteBlock(UUID userId, UUID blockId) {
+    public boolean canWriteBlock(String userId, String blockId) {
         return permissionRepository.hasBlockPermission(userId, blockId, (short) 3);
     }
 
@@ -364,7 +364,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на файл
      */
     @Transactional(readOnly = true)
-    public boolean canReadFile(UUID userId, UUID fileId) {
+    public boolean canReadFile(String userId, String fileId) {
         return permissionRepository.hasFilePermission(userId, fileId, (short) 1);
     }
 
@@ -372,7 +372,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на запись в файл
      */
     @Transactional(readOnly = true)
-    public boolean canWriteFile(UUID userId, UUID fileId) {
+    public boolean canWriteFile(String userId, String fileId) {
         return permissionRepository.hasFilePermission(userId, fileId, (short) 3);
     }
 
@@ -380,7 +380,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на папку
      */
     @Transactional(readOnly = true)
-    public boolean canReadFolder(UUID userId, UUID folderId) {
+    public boolean canReadFolder(String userId, String folderId) {
         return permissionRepository.hasFolderPermission(userId, folderId, (short) 1);
     }
 
@@ -388,7 +388,7 @@ public class ItemPermissionService {
      * Быстрая проверка прав на запись в папку
      */
     @Transactional(readOnly = true)
-    public boolean canWriteFolder(UUID userId, UUID folderId) {
+    public boolean canWriteFolder(String userId, String folderId) {
         return permissionRepository.hasFolderPermission(userId, folderId, (short) 3);
     }
 
@@ -398,19 +398,19 @@ public class ItemPermissionService {
      * Получить права для нескольких проектов одновременно
      */
     @Transactional(readOnly = true)
-    public Map<UUID, Short> getProjectPermissionsBatch(UUID userId, List<UUID> projectIds) {
+    public Map<String, Short> getProjectPermissionsBatch(String userId, List<String> projectIds) {
         log.debug("Getting batch project permissions for user={}, count={}", userId, projectIds.size());
 
         if (projectIds == null || projectIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        UUID[] idsArray = projectIds.toArray(new UUID[0]);
+        String[] idsArray = projectIds.toArray(new String[0]);
         List<Object[]> results = permissionRepository.findEffectivePermissionsForProjects(userId, idsArray);
 
-        Map<UUID, Short> permissions = results.stream()
+        Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
-                        row -> (UUID) row[0],
+                        row -> (String) row[0],
                         row -> ((Number) row[1]).shortValue()
                 ));
 
@@ -422,19 +422,19 @@ public class ItemPermissionService {
      * Получить права для нескольких блоков одновременно
      */
     @Transactional(readOnly = true)
-    public Map<UUID, Short> getBlockPermissionsBatch(UUID userId, List<UUID> blockIds) {
+    public Map<String, Short> getBlockPermissionsBatch(String userId, List<String> blockIds) {
         log.debug("Getting batch block permissions for user={}, count={}", userId, blockIds.size());
 
         if (blockIds == null || blockIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        UUID[] idsArray = blockIds.toArray(new UUID[0]);
+        String[] idsArray = blockIds.toArray(new String[0]);
         List<Object[]> results = permissionRepository.findEffectivePermissionsForBlocks(userId, idsArray);
 
-        Map<UUID, Short> permissions = results.stream()
+        Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
-                        row -> (UUID) row[0],
+                        row -> (String) row[0],
                         row -> ((Number) row[1]).shortValue()
                 ));
 
@@ -446,19 +446,19 @@ public class ItemPermissionService {
      * Получить права для нескольких файлов одновременно
      */
     @Transactional(readOnly = true)
-    public Map<UUID, Short> getFilePermissionsBatch(UUID userId, List<UUID> fileIds) {
+    public Map<String, Short> getFilePermissionsBatch(String userId, List<String> fileIds) {
         log.debug("Getting batch file permissions for user={}, count={}", userId, fileIds.size());
 
         if (fileIds == null || fileIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        UUID[] idsArray = fileIds.toArray(new UUID[0]);
+        String[] idsArray = fileIds.toArray(new String[0]);
         List<Object[]> results = permissionRepository.findEffectivePermissionsForFiles(userId, idsArray);
 
-        Map<UUID, Short> permissions = results.stream()
+        Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
-                        row -> (UUID) row[0],
+                        row -> (String) row[0],
                         row -> ((Number) row[1]).shortValue()
                 ));
 
@@ -470,19 +470,19 @@ public class ItemPermissionService {
      * Получить права для нескольких папок одновременно
      */
     @Transactional(readOnly = true)
-    public Map<UUID, Short> getFolderPermissionsBatch(UUID userId, List<UUID> folderIds) {
+    public Map<String, Short> getFolderPermissionsBatch(String userId, List<String> folderIds) {
         log.debug("Getting batch folder permissions for user={}, count={}", userId, folderIds.size());
 
         if (folderIds == null || folderIds.isEmpty()) {
             return Collections.emptyMap();
         }
 
-        UUID[] idsArray = folderIds.toArray(new UUID[0]);
+        String[] idsArray = folderIds.toArray(new String[0]);
         List<Object[]> results = permissionRepository.findEffectivePermissionsForFolders(userId, idsArray);
 
-        Map<UUID, Short> permissions = results.stream()
+        Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
-                        row -> (UUID) row[0],
+                        row -> (String) row[0],
                         row -> ((Number) row[1]).shortValue()
                 ));
 
@@ -496,15 +496,15 @@ public class ItemPermissionService {
      * Получить все доступные проекты с их правами
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getAllAccessibleProjects(UUID userId, String tenantId) {
+    public List<ItemWithPermissions> getAllAccessibleProjects(String userId, String tenantId) {
         log.debug("Getting all accessible projects for user={}, tenant={}", userId, tenantId);
 
         List<Object[]> results = permissionRepository.findAllAccessibleProjects(userId, tenantId);
 
         List<ItemWithPermissions> projects = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],           // id
-                        (UUID) row[1],           // folder_id
+                        (String) row[0],           // id
+                        (String) row[1],           // folder_id
                         ((Number) row[6]).shortValue(), // effective_permissions
                         ((Timestamp) row[3]).toLocalDateTime(), // created_at
                         ItemType.PROJECT
@@ -519,15 +519,15 @@ public class ItemPermissionService {
      * Получить все доступные блоки с их правами
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getAllAccessibleBlocks(UUID userId, String tenantId) {
+    public List<ItemWithPermissions> getAllAccessibleBlocks(String userId, String tenantId) {
         log.debug("Getting all accessible blocks for user={}, tenant={}", userId, tenantId);
 
         List<Object[]> results = permissionRepository.findAllAccessibleBlocks(userId, tenantId);
 
         List<ItemWithPermissions> blocks = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],
-                        (UUID) row[1],
+                        (String) row[0],
+                        (String) row[1],
                         ((Number) row[6]).shortValue(),
                         ((Timestamp) row[3]).toLocalDateTime(),
                         ItemType.BLOCK
@@ -542,15 +542,15 @@ public class ItemPermissionService {
      * Получить все доступные файлы с их правами
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getAllAccessibleFiles(UUID userId, String tenantId) {
+    public List<ItemWithPermissions> getAllAccessibleFiles(String userId, String tenantId) {
         log.debug("Getting all accessible files for user={}, tenant={}", userId, tenantId);
 
         List<Object[]> results = permissionRepository.findAllAccessibleFiles(userId, tenantId);
 
         List<ItemWithPermissions> files = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],
-                        (UUID) row[1],
+                        (String) row[0],
+                        (String) row[1],
                         ((Number) row[6]).shortValue(),
                         ((Timestamp) row[3]).toLocalDateTime(),
                         ItemType.FILE
@@ -565,16 +565,16 @@ public class ItemPermissionService {
      * Получить все доступные папки с их правами
      */
     @Transactional(readOnly = true)
-    public List<FolderWithPermissions> getAllAccessibleFolders(UUID userId, String tenantId) {
+    public List<FolderWithPermissions> getAllAccessibleFolders(String userId, String tenantId) {
         log.debug("Getting all accessible folders for user={}, tenant={}", userId, tenantId);
 
         List<Object[]> results = permissionRepository.findAllAccessibleFolders(userId, tenantId);
 
         List<FolderWithPermissions> folders = results.stream()
                 .map(row -> new FolderWithPermissions(
-                        (UUID) row[0],           // id
+                        (String) row[0],           // id
                         (String) row[1],         // name
-                        (UUID) row[2],           // parent_id
+                        (String) row[2],           // parent_id
                         (Boolean) row[4],        // has_children
                         ((Number) row[8]).shortValue(), // effective_permissions
                         ((Timestamp) row[5]).toLocalDateTime() // created_at
@@ -591,15 +591,15 @@ public class ItemPermissionService {
      * Получить все проекты в папке с правами доступа
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getProjectsInFolder(UUID userId, UUID folderId) {
+    public List<ItemWithPermissions> getProjectsInFolder(String userId, String folderId) {
         log.debug("Getting projects in folder={} for user={}", folderId, userId);
 
         List<Object[]> results = permissionRepository.findProjectsInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> projects = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],
-                        (UUID) row[1],
+                        (String) row[0],
+                        (String) row[1],
                         ((Number) row[4]).shortValue(),
                         ((Timestamp) row[3]).toLocalDateTime(),
                         ItemType.PROJECT
@@ -614,15 +614,15 @@ public class ItemPermissionService {
      * Получить все блоки в папке с правами доступа
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getBlocksInFolder(UUID userId, UUID folderId) {
+    public List<ItemWithPermissions> getBlocksInFolder(String userId, String folderId) {
         log.debug("Getting blocks in folder={} for user={}", folderId, userId);
 
         List<Object[]> results = permissionRepository.findBlocksInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> blocks = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],
-                        (UUID) row[1],
+                        (String) row[0],
+                        (String) row[1],
                         ((Number) row[4]).shortValue(),
                         ((Timestamp) row[3]).toLocalDateTime(),
                         ItemType.BLOCK
@@ -637,15 +637,15 @@ public class ItemPermissionService {
      * Получить все файлы в папке с правами доступа
      */
     @Transactional(readOnly = true)
-    public List<ItemWithPermissions> getFilesInFolder(UUID userId, UUID folderId) {
+    public List<ItemWithPermissions> getFilesInFolder(String userId, String folderId) {
         log.debug("Getting files in folder={} for user={}", folderId, userId);
 
         List<Object[]> results = permissionRepository.findFilesInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> files = results.stream()
                 .map(row -> new ItemWithPermissions(
-                        (UUID) row[0],
-                        (UUID) row[1],
+                        (String) row[0],
+                        (String) row[1],
                         ((Number) row[4]).shortValue(),
                         ((Timestamp) row[3]).toLocalDateTime(),
                         ItemType.FILE
@@ -660,16 +660,16 @@ public class ItemPermissionService {
      * Получить дочерние папки с правами доступа
      */
     @Transactional(readOnly = true)
-    public List<FolderWithPermissions> getSubfolders(UUID userId, UUID parentFolderId) {
+    public List<FolderWithPermissions> getSubfolders(String userId, String parentFolderId) {
         log.debug("Getting subfolders of folder={} for user={}", parentFolderId, userId);
 
         List<Object[]> results = permissionRepository.findSubfoldersWithPermissions(userId, parentFolderId);
 
         List<FolderWithPermissions> subfolders = results.stream()
                 .map(row -> new FolderWithPermissions(
-                        (UUID) row[0],
+                        (String) row[0],
                         (String) row[1],
-                        (UUID) row[2],
+                        (String) row[2],
                         (Boolean) row[4],
                         ((Number) row[6]).shortValue(),
                         ((Timestamp) row[5]).toLocalDateTime()
@@ -684,7 +684,7 @@ public class ItemPermissionService {
      * Получить все содержимое папки с правами доступа
      */
     @Transactional(readOnly = true)
-    public FolderContents getFolderContents(UUID userId, UUID folderId) {
+    public FolderContents getFolderContents(String userId, String folderId) {
         log.debug("Getting folder contents for folder={}, user={}", folderId, userId);
 
         List<FolderWithPermissions> subfolders = getSubfolders(userId, folderId);
@@ -706,7 +706,7 @@ public class ItemPermissionService {
      * Подсчитать количество доступных проектов с минимальным уровнем прав
      */
     @Transactional(readOnly = true)
-    public long countAccessibleProjects(UUID userId, String tenantId, short minPermissionMask) {
+    public long countAccessibleProjects(String userId, String tenantId, short minPermissionMask) {
         log.debug("Counting accessible projects for user={}, tenant={}, minPermissions={}",
                 userId, tenantId, minPermissionMask);
 
@@ -720,7 +720,7 @@ public class ItemPermissionService {
      * Подсчитать количество доступных блоков с минимальным уровнем прав
      */
     @Transactional(readOnly = true)
-    public long countAccessibleBlocks(UUID userId, String tenantId, short minPermissionMask) {
+    public long countAccessibleBlocks(String userId, String tenantId, short minPermissionMask) {
         log.debug("Counting accessible blocks for user={}, tenant={}, minPermissions={}",
                 userId, tenantId, minPermissionMask);
 
@@ -735,7 +735,7 @@ public class ItemPermissionService {
     /**
      * Получить сущность прав доступа (только прямой доступ, без наследования)
      */
-    private Optional<ItemUserPermission> getPermissionEntity(UUID userId, UUID itemId, ItemType itemType) {
+    private Optional<ItemUserPermission> getPermissionEntity(String userId, String itemId, ItemType itemType) {
         return switch (itemType) {
             case PROJECT -> permissionRepository.findByUserIdAndProjectId(userId, itemId);
             case FOLDER -> permissionRepository.findByUserIdAndFolderId(userId, itemId);
@@ -747,13 +747,13 @@ public class ItemPermissionService {
     /**
      * Создать новую сущность прав доступа
      */
-    private ItemUserPermission createPermissionEntity(UUID userId, UUID itemId, ItemType itemType, short permissions) {
+    private ItemUserPermission createPermissionEntity(String userId, String itemId, ItemType itemType, short permissions) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + userId));
 
         ItemUserPermission permission = ItemUserPermission.builder()
                 .user(user)
-                .permissions(permissions)
+                .permission(permissions)
                 .build();
 
         // Привязываем к соответствующему элементу
@@ -786,7 +786,7 @@ public class ItemPermissionService {
     /**
      * Проверить что элемент существует
      */
-    private void validateItemExists(UUID itemId, ItemType itemType) {
+    private void validateItemExists(String itemId, ItemType itemType) {
         boolean exists = switch (itemType) {
             case PROJECT -> projectRepository.existsById(itemId);
             case FOLDER -> folderRepository.existsById(itemId);
@@ -803,13 +803,13 @@ public class ItemPermissionService {
 
     // ==================== ВАЛИДАЦИЯ ====================
 
-    private void validateUserId(UUID userId) {
+    private void validateUserId(String userId) {
         if (userId == null) {
             throw new IllegalArgumentException("UserId cannot be null");
         }
     }
 
-    private void validateItemId(UUID itemId) {
+    private void validateItemId(String itemId) {
         if (itemId == null) {
             throw new IllegalArgumentException("ItemId cannot be null");
         }
@@ -835,13 +835,13 @@ public class ItemPermissionService {
      * DTO для элемента с правами доступа
      */
     public static class ItemWithPermissions {
-        private final UUID id;
-        private final UUID folderId;
+        private final String id;
+        private final String folderId;
         private final Short effectivePermissions;
         private final LocalDateTime createdAt;
         private final ItemType itemType;
 
-        public ItemWithPermissions(UUID id, UUID folderId, Short effectivePermissions,
+        public ItemWithPermissions(String id, String folderId, Short effectivePermissions,
                                    LocalDateTime createdAt, ItemType itemType) {
             this.id = id;
             this.folderId = folderId;
@@ -850,11 +850,11 @@ public class ItemPermissionService {
             this.itemType = itemType;
         }
 
-        public UUID getId() {
+        public String getId() {
             return id;
         }
 
-        public UUID getFolderId() {
+        public String getFolderId() {
             return folderId;
         }
 
@@ -906,14 +906,14 @@ public class ItemPermissionService {
      * DTO для папки с правами доступа
      */
     public static class FolderWithPermissions {
-        private final UUID id;
+        private final String id;
         private final String name;
-        private final UUID parentId;
+        private final String parentId;
         private final Boolean hasChildren;
         private final Short effectivePermissions;
         private final LocalDateTime createdAt;
 
-        public FolderWithPermissions(UUID id, String name, UUID parentId, Boolean hasChildren,
+        public FolderWithPermissions(String id, String name, String parentId, Boolean hasChildren,
                                      Short effectivePermissions, LocalDateTime createdAt) {
             this.id = id;
             this.name = name;
@@ -923,7 +923,7 @@ public class ItemPermissionService {
             this.createdAt = createdAt;
         }
 
-        public UUID getId() {
+        public String getId() {
             return id;
         }
 
@@ -931,7 +931,7 @@ public class ItemPermissionService {
             return name;
         }
 
-        public UUID getParentId() {
+        public String getParentId() {
             return parentId;
         }
 

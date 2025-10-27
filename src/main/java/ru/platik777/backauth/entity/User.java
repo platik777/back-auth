@@ -9,11 +9,12 @@ import ru.platik777.backauth.entity.embedded.UserSettings;
 import ru.platik777.backauth.entity.types.AccountType;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.UUID;
+import java.util.Set;
 
 @Entity
-@Table(name = "users")
+@Table(name = "user")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -23,7 +24,7 @@ public class User extends BaseEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    private UUID id;
+    private String id;
 
     @Column(nullable = false, length = 255)
     private String name;
@@ -36,7 +37,7 @@ public class User extends BaseEntity {
     private UserSettings settings;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "account_type")
+    @Column(name = "account_type", length = 255)
     private AccountType accountType;
 
     @Column(name = "password_hash", nullable = false, length = 255)
@@ -56,6 +57,10 @@ public class User extends BaseEntity {
     @Builder.Default
     private List<ApiKey> apiKeys = new ArrayList<>();
 
+    @ManyToMany(mappedBy = "users")
+    @Builder.Default
+    private Set<Group> groups = new HashSet<>();
+
     @Override
     public String toString() {
         return "User{" +
@@ -64,11 +69,8 @@ public class User extends BaseEntity {
                 ", login='" + login + '\'' +
                 ", settings=" + settings +
                 ", accountType=" + accountType +
-                ", passwordHash='" + passwordHash + '\'' +
                 ", email='" + email + '\'' +
                 ", phone='" + phone + '\'' +
-                ", tenants=" + tenants +
-                ", apiKeys=" + apiKeys +
                 '}';
     }
 }

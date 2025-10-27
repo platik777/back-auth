@@ -9,7 +9,6 @@ import ru.platik777.backauth.entity.embedded.UserSettings;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.UUID;
 
 /**
  * DTO пользователя для ответа
@@ -19,7 +18,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class UserResponse {
-    private UUID id;
+    private String id;
     private String login;
     private String email;
     private String userName;

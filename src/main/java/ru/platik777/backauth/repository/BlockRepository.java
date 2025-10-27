@@ -7,5 +7,5 @@ import ru.platik777.backauth.entity.Block;
 import java.util.UUID;
 
 @Repository
-public interface BlockRepository extends JpaRepository<Block, UUID> {
+public interface BlockRepository extends JpaRepository<Block, String> {
 }

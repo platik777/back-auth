@@ -2,10 +2,8 @@ package ru.platik777.backauth.dto.response;
 
 import ru.platik777.backauth.entity.types.ItemType;
 
-import java.util.UUID;
-
 public record PermissionResponse(
-            UUID itemId,
+            String itemId,
             ItemType itemType,
             Short permissions
     ) {
