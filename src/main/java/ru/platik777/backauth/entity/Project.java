@@ -38,10 +38,6 @@ public class Project extends BaseEntity {
     @Column(nullable = false, length = 255)
     private String name;
 
-    @Type(JsonBinaryType.class)
-    @Column(columnDefinition = "jsonb")
-    private Map<String, Object> data;
-
     @Column(length = 50)
     private String type;
 

@@ -36,7 +36,7 @@ public class Block extends BaseEntity {
 
     @Type(JsonBinaryType.class)
     @Column(columnDefinition = "jsonb")
-    private Map<String, Object> data;
+    private Map<String, Object> block_data;
 
     @Column
     private Boolean state;

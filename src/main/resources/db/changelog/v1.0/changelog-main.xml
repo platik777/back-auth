@@ -168,7 +168,6 @@
                 <constraints nullable="false"/>
             </column>
             <column name="status" type="VARCHAR(50)"/>
-            <column name="data" type="JSONB"/>
             <column name="favourite" type="BOOLEAN" defaultValueBoolean="false"/>
             <column name="preview" type="VARCHAR(500)"/>
             <column name="type" type="VARCHAR(50)"/>
@@ -235,7 +234,7 @@
             <column name="all_parent_ids" type="TEXT[]"/>
             <column name="rank" type="INTEGER"/>
             <column name="name" type="VARCHAR(255)"/>
-            <column name="data" type="JSONB"/>
+            <column name="block_data" type="JSONB"/>
             <column name="state" type="BOOLEAN"/>
             <column name="locale" type="VARCHAR(10)"/>
             <column name="category_id" type="VARCHAR(255)"/>
