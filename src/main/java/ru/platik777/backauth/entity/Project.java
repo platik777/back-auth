@@ -47,4 +47,10 @@ public class Project extends BaseEntity {
 
     @Column(length = 50)
     private String status;
+
+    @Column
+    private Boolean favourite = false;
+
+    @Column(length = 500)
+    private String preview;
 }

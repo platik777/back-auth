@@ -195,7 +195,8 @@
                 <constraints nullable="false"/>
             </column>
             <column name="comment" type="TEXT"/>
-            <column name="is_parent" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="is_snapshot" type="BOOLEAN" defaultValueBoolean="false"/>
+            <column name="snapshot" type="JSONB"/>
             <column name="delta" type="JSONB"/>
 
             <!-- Поля из BaseEntity -->
@@ -207,8 +208,26 @@
         </createTable>
     </changeSet>
 
-    <!-- Создание таблицы block -->
+    <!-- Создание таблицы image -->
     <changeSet id="initial-8" author="developer">
+        <createTable tableName="image">
+            <column name="id" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
+            <column name="file" type="BYTEA"/>
+
+            <!-- Поля из BaseEntity -->
+            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
+            <column name="updated_at" type="TIMESTAMP"/>
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+            <column name="tenant_id" type="VARCHAR(255)"/>
+        </createTable>
+    </changeSet>
+
+    <!-- Создание таблицы block -->
+    <changeSet id="initial-9" author="developer">
         <createTable tableName="block">
             <column name="id" type="VARCHAR(255)">
                 <constraints primaryKey="true" nullable="false"/>
@@ -220,31 +239,15 @@
             <column name="state" type="BOOLEAN"/>
             <column name="locale" type="VARCHAR(10)"/>
             <column name="category_id" type="VARCHAR(255)"/>
-            <column name="image" type="VARCHAR(500)"/>
+            <column name="project_id" type="VARCHAR(255)">
+                <constraints nullable="false" foreignKeyName="fk_block_project" references="project(id)" deleteCascade="true"/>
+            </column>
+            <column name="image_id" type="VARCHAR(255)">
+                <constraints nullable="true" foreignKeyName="fk_block_image" references="image(id)" deleteCascade="true"/>
+            </column>
             <column name="folder_id" type="VARCHAR(255)">
                 <constraints nullable="false" foreignKeyName="fk_block_folder" references="folder(id)" deleteCascade="true"/>
             </column>
-
-            <!-- Поля из BaseEntity -->
-            <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>
-            <column name="updated_at" type="TIMESTAMP"/>
-            <column name="created_by" type="VARCHAR(255)"/>
-            <column name="updated_by" type="VARCHAR(255)"/>
-            <column name="tenant_id" type="VARCHAR(255)"/>
-        </createTable>
-    </changeSet>
-
-    <!-- Создание таблицы image -->
-    <changeSet id="initial-9" author="developer">
-        <createTable tableName="image">
-            <column name="id" type="VARCHAR(255)">
-                <constraints primaryKey="true" nullable="false"/>
-            </column>
-            <column name="block_id" type="VARCHAR(255)">
-                <constraints nullable="false" foreignKeyName="fk_image_block" references="block(id)" deleteCascade="true"/>
-            </column>
-            <column name="is_active" type="BOOLEAN" defaultValueBoolean="true"/>
-            <column name="file" type="BYTEA"/>
 
             <!-- Поля из BaseEntity -->
             <column name="created_at" type="TIMESTAMP" defaultValueComputed="CURRENT_TIMESTAMP"/>

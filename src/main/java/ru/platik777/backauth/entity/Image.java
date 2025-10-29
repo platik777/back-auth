@@ -17,10 +17,6 @@ public class Image extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "block_id", nullable = false)
-    private Block block;
-
     @Column(name = "is_active")
     private Boolean isActive = true;
 

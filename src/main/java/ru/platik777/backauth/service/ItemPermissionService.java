@@ -406,7 +406,7 @@ public class ItemPermissionService {
         }
 
         String[] idsArray = projectIds.toArray(new String[0]);
-        List<Object[]> results = permissionRepository.findEffectivePermissionsForProjects(userId, idsArray);
+        List<Object[]> results = projectRepository.findEffectivePermissionsForProjects(userId, idsArray);
 
         Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
@@ -430,7 +430,7 @@ public class ItemPermissionService {
         }
 
         String[] idsArray = blockIds.toArray(new String[0]);
-        List<Object[]> results = permissionRepository.findEffectivePermissionsForBlocks(userId, idsArray);
+        List<Object[]> results = blockRepository.findEffectivePermissionsForBlocks(userId, idsArray);
 
         Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
@@ -454,7 +454,7 @@ public class ItemPermissionService {
         }
 
         String[] idsArray = fileIds.toArray(new String[0]);
-        List<Object[]> results = permissionRepository.findEffectivePermissionsForFiles(userId, idsArray);
+        List<Object[]> results = fileRepository.findEffectivePermissionsForFiles(userId, idsArray);
 
         Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
@@ -478,7 +478,7 @@ public class ItemPermissionService {
         }
 
         String[] idsArray = folderIds.toArray(new String[0]);
-        List<Object[]> results = permissionRepository.findEffectivePermissionsForFolders(userId, idsArray);
+        List<Object[]> results = folderRepository.findEffectivePermissionsForFolders(userId, idsArray);
 
         Map<String, Short> permissions = results.stream()
                 .collect(Collectors.toMap(
@@ -499,7 +499,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getAllAccessibleProjects(String userId, String tenantId) {
         log.debug("Getting all accessible projects for user={}, tenant={}", userId, tenantId);
 
-        List<Object[]> results = permissionRepository.findAllAccessibleProjects(userId, tenantId);
+        List<Object[]> results = projectRepository.findAllAccessibleProjects(userId, tenantId);
 
         List<ItemWithPermissions> projects = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -522,7 +522,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getAllAccessibleBlocks(String userId, String tenantId) {
         log.debug("Getting all accessible blocks for user={}, tenant={}", userId, tenantId);
 
-        List<Object[]> results = permissionRepository.findAllAccessibleBlocks(userId, tenantId);
+        List<Object[]> results = blockRepository.findAllAccessibleBlocks(userId, tenantId);
 
         List<ItemWithPermissions> blocks = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -545,7 +545,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getAllAccessibleFiles(String userId, String tenantId) {
         log.debug("Getting all accessible files for user={}, tenant={}", userId, tenantId);
 
-        List<Object[]> results = permissionRepository.findAllAccessibleFiles(userId, tenantId);
+        List<Object[]> results = fileRepository.findAllAccessibleFiles(userId, tenantId);
 
         List<ItemWithPermissions> files = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -568,7 +568,7 @@ public class ItemPermissionService {
     public List<FolderWithPermissions> getAllAccessibleFolders(String userId, String tenantId) {
         log.debug("Getting all accessible folders for user={}, tenant={}", userId, tenantId);
 
-        List<Object[]> results = permissionRepository.findAllAccessibleFolders(userId, tenantId);
+        List<Object[]> results = folderRepository.findAllAccessibleFolders(userId, tenantId);
 
         List<FolderWithPermissions> folders = results.stream()
                 .map(row -> new FolderWithPermissions(
@@ -594,7 +594,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getProjectsInFolder(String userId, String folderId) {
         log.debug("Getting projects in folder={} for user={}", folderId, userId);
 
-        List<Object[]> results = permissionRepository.findProjectsInFolderWithPermissions(userId, folderId);
+        List<Object[]> results = projectRepository.findProjectsInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> projects = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -617,7 +617,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getBlocksInFolder(String userId, String folderId) {
         log.debug("Getting blocks in folder={} for user={}", folderId, userId);
 
-        List<Object[]> results = permissionRepository.findBlocksInFolderWithPermissions(userId, folderId);
+        List<Object[]> results = blockRepository.findBlocksInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> blocks = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -640,7 +640,7 @@ public class ItemPermissionService {
     public List<ItemWithPermissions> getFilesInFolder(String userId, String folderId) {
         log.debug("Getting files in folder={} for user={}", folderId, userId);
 
-        List<Object[]> results = permissionRepository.findFilesInFolderWithPermissions(userId, folderId);
+        List<Object[]> results = fileRepository.findFilesInFolderWithPermissions(userId, folderId);
 
         List<ItemWithPermissions> files = results.stream()
                 .map(row -> new ItemWithPermissions(
@@ -663,7 +663,7 @@ public class ItemPermissionService {
     public List<FolderWithPermissions> getSubfolders(String userId, String parentFolderId) {
         log.debug("Getting subfolders of folder={} for user={}", parentFolderId, userId);
 
-        List<Object[]> results = permissionRepository.findSubfoldersWithPermissions(userId, parentFolderId);
+        List<Object[]> results = folderRepository.findSubfoldersWithPermissions(userId, parentFolderId);
 
         List<FolderWithPermissions> subfolders = results.stream()
                 .map(row -> new FolderWithPermissions(
@@ -710,7 +710,7 @@ public class ItemPermissionService {
         log.debug("Counting accessible projects for user={}, tenant={}, minPermissions={}",
                 userId, tenantId, minPermissionMask);
 
-        long count = permissionRepository.countAccessibleProjects(userId, tenantId, minPermissionMask);
+        long count = projectRepository.countAccessibleProjects(userId, tenantId, minPermissionMask);
 
         log.debug("Found {} accessible projects for user={}", count, userId);
         return count;
@@ -724,7 +724,7 @@ public class ItemPermissionService {
         log.debug("Counting accessible blocks for user={}, tenant={}, minPermissions={}",
                 userId, tenantId, minPermissionMask);
 
-        long count = permissionRepository.countAccessibleBlocks(userId, tenantId, minPermissionMask);
+        long count = blockRepository.countAccessibleBlocks(userId, tenantId, minPermissionMask);
 
         log.debug("Found {} accessible blocks for user={}", count, userId);
         return count;

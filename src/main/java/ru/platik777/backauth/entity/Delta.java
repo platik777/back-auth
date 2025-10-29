@@ -31,10 +31,14 @@ public class Delta extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String comment;
 
-    @Column(name = "is_parent")
-    private Boolean isParent = false;
+    @Column(name = "is_snapshot")
+    private Boolean isSnapshot = false;
 
     @Type(JsonBinaryType.class)
     @Column(columnDefinition = "jsonb")
     private Map<String, Object> delta;
+
+    @Type(JsonBinaryType.class)
+    @Column(columnDefinition = "jsonb")
+    private Map<String, Object> snapshot;
 }

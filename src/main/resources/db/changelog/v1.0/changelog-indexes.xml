@@ -93,8 +93,8 @@
         </createIndex>
 
         <!-- Индексы для image -->
-        <createIndex tableName="image" indexName="idx_image_block">
-            <column name="block_id"/>
+        <createIndex tableName="block" indexName="idx_image_block">
+            <column name="image_id"/>
         </createIndex>
 
         <createIndex tableName="image" indexName="idx_image_active">
@@ -164,7 +164,7 @@
 
     <!-- GIN индексы для JSONB полей -->
     <changeSet id="indexes-2" author="developer">
-        <sql>CREATE INDEX idx_user_settings ON user USING GIN (settings);</sql>
+        <sql>CREATE INDEX idx_user_settings ON "user" USING GIN (settings);</sql>
         <sql>CREATE INDEX idx_project_data ON project USING GIN (data);</sql>
         <sql>CREATE INDEX idx_block_data ON block USING GIN (data);</sql>
         <sql>CREATE INDEX idx_delta_delta ON delta USING GIN (delta);</sql>
